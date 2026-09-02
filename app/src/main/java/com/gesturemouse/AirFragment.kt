@@ -12,7 +12,6 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
-import androidx.appcompat.app.AlertDialog
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.fragment.app.Fragment
 import androidx.core.content.ContextCompat
@@ -59,13 +58,6 @@ class AirFragment : Fragment(), GestureEngine.Output {
     private var frames = 0
     private var fpsMark = 0L
     private var lastResultAt = 0L
-    private var lastHandSignature = ""
-
-    private var hostOs = HidKeys.HostOs.WINDOWS
-
-    private val prefs by lazy {
-        requireContext().getSharedPreferences("gesturemouse", android.content.Context.MODE_PRIVATE)
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -89,33 +81,6 @@ class AirFragment : Fragment(), GestureEngine.Output {
             engine.release()
             startCamera()
         }
-
-        hostOs = runCatching {
-            HidKeys.HostOs.valueOf(prefs.getString("hostOs", null) ?: "")
-        }.getOrDefault(HidKeys.HostOs.WINDOWS)
-        b.hostOs.text = hostOs.label
-        b.hostOs.setOnClickListener { pickHostOs() }
-    }
-
-    /**
-     * The host's OS decides which launcher shortcut opens a URL — Run,
-     * Spotlight or a terminal. There's no way to ask the host what it is: to a
-     * HID device every host looks identical.
-     */
-    private fun pickHostOs() {
-        val options = HidKeys.HostOs.entries.toTypedArray()
-        AlertDialog.Builder(requireContext())
-            .setTitle("Host computer")
-            .setSingleChoiceItems(
-                options.map { it.label }.toTypedArray(),
-                options.indexOf(hostOs)
-            ) { dialog, which ->
-                hostOs = options[which]
-                prefs.edit().putString("hostOs", hostOs.name).apply()
-                b.hostOs.text = hostOs.label
-                dialog.dismiss()
-            }
-            .show()
     }
 
     override fun onResume() {
@@ -161,7 +126,7 @@ class AirFragment : Fragment(), GestureEngine.Output {
                 HandLandmarker.HandLandmarkerOptions.builder()
                     .setBaseOptions(base)
                     .setRunningMode(RunningMode.LIVE_STREAM)
-                    .setNumHands(2)
+                    .setNumHands(1)
                     .setMinHandDetectionConfidence(0.5f)
                     .setMinTrackingConfidence(0.5f)
                     .setMinHandPresenceConfidence(0.5f)
@@ -185,7 +150,7 @@ class AirFragment : Fragment(), GestureEngine.Output {
                     HandLandmarker.HandLandmarkerOptions.builder()
                         .setBaseOptions(base)
                         .setRunningMode(RunningMode.LIVE_STREAM)
-                        .setNumHands(2)
+                        .setNumHands(1)
                         .setResultListener { result, _ -> onLandmarks(result) }
                         .build()
                 )
@@ -250,29 +215,12 @@ class AirFragment : Fragment(), GestureEngine.Output {
 
     private fun onLandmarks(result: HandLandmarkerResult) {
         val now = SystemClock.uptimeMillis()
-        val rawHands = result.landmarks()
-        val rawHandedness = result.handedness()
-        val hands = rawHands.mapIndexed { i, hand ->
-            // "Right"/"Left" here means the subject's own hand, per MediaPipe's
-            // selfie-mirrored convention — matches the mirroring already
-            // applied to the front camera in analyze(). See GestureEngine.checkEggPose.
-            val isRight = rawHandedness.getOrNull(i)?.firstOrNull()?.categoryName() == "Right"
-            GestureEngine.Hand(hand.map { GestureEngine.Landmark(it.x(), it.y()) }, isRight)
+        val hands = result.landmarks().map { hand ->
+            hand.map { GestureEngine.Landmark(it.x(), it.y()) }
         }
-        val points = hands.firstOrNull()?.landmarks.orEmpty()
+        val points = hands.firstOrNull().orEmpty()
 
-        // edge-triggered on the (count, handedness) pair rather than every
-        // frame: this exists to answer "does the tracker ever see two hands,
-        // and does it label them Left/Right the way the crossed-palms check
-        // needs" — a question the per-frame egg_diag log can't answer, since
-        // it only fires once both a Right and a Left hand are already present.
-        val handSignature = hands.joinToString(",") { if (it.isRight) "R" else "L" }
-        if (handSignature != lastHandSignature) {
-            lastHandSignature = handSignature
-            log?.log("hands_seen", mapOf("signature" to handSignature.ifEmpty { "none" }))
-        }
-
-        if (hands.any { it.landmarks.size >= 21 }) {
+        if (hands.any { it.size >= 21 }) {
             engine.updateHands(hands, now)
             lastResultAt = now
         } else {
@@ -299,7 +247,7 @@ class AirFragment : Fragment(), GestureEngine.Output {
             }
         }
         activity?.runOnUiThread {
-            _b?.overlay?.setHands(hands.map { it.landmarks }, engine.onPad, engine.sweeping)
+            _b?.overlay?.setHands(hands, engine.onPad, engine.sweeping)
         }
     }
 
@@ -311,19 +259,6 @@ class AirFragment : Fragment(), GestureEngine.Output {
     override fun buttonDown() { mouse?.buttonDown(HidMouse.BUTTON_LEFT) }
     override fun buttonUp() { mouse?.buttonUp(HidMouse.BUTTON_LEFT) }
     override fun scroll(notches: Int) { mouse?.scroll(notches) }
-
-    override fun launchUrl() {
-        val m = mouse
-        if (m == null) {
-            state("no host", "connect a computer first")
-            return
-        }
-        m.openUrl(HidKeys.EASTER_EGG_URL, hostOs) { ok, msg ->
-            // the host gives no feedback at all, so the phone's own readout is
-            // the only place a failure can surface
-            state(if (ok) "link sent" else "link failed", msg)
-        }
-    }
 
     override fun state(label: String, hint: String) {
         activity?.runOnUiThread {

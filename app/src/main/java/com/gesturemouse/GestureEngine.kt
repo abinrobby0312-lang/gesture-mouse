@@ -29,9 +29,6 @@ class GestureEngine(private val realOut: Output) {
         fun buttonUp()
         fun scroll(notches: Int)
         fun state(label: String, hint: String)
-
-        /** Both palms raised and crossed — open the configured link on the host. */
-        fun launchUrl()
     }
 
     companion object {
@@ -77,96 +74,15 @@ class GestureEngine(private val realOut: Output) {
         const val SWEEP_GAIN = 2.0f
 
         /**
-         * The two-hand pose: wrists genuinely crossed, checked with handedness
-         * rather than raw position — the subject's right hand has swapped over
-         * to the screen-left side and the left hand to screen-right, see
-         * [checkEggPose]. Two hands merely held up side by side, uncrossed,
-         * does not satisfy this even if they're touching.
-         *
-         * This fires on a single instant, not a held pose — two earlier
-         * designs (a continuous hold, then a hold with a memory of a momentary
-         * cross) both failed against real tracking data. At the exact moment
-         * wrists cross, they occlude each other and MediaPipe's read is
-         * unreliable across the board: not just hand *count* (dropping to one
-         * hand or losing both), but "open" and "raised" too, which measured
-         * device sessions showed reading false at the very instants a genuine
-         * crossing was caught. Tracking often didn't recover to a clean
-         * two-hand read for a second or more afterward, so waiting for things
-         * to "settle" before firing meant never firing at all.
-         *
-         * What's trusted is the crossing instant itself: [checkEggPose] only
-         * computes it when both a Right and a Left hand are confidently found,
-         * combined with a tight [EGG_TIGHT_GAP]. That combination is gated
-         * only by [EGG_COOLDOWN] so the same crossing can't retrigger while
-         * your hands are still up.
-         *
-         * [EGG_TIGHT_GAP] itself was set from measured device data, not a
-         * guess, because a loose value turned this into a false-positive
-         * source during ordinary one-handed mouse use — a second hand (e.g.
-         * the one holding the phone) drifting into frame for a single frame
-         * would occasionally read as a swapped L/R pair. The two clusters
-         * were cleanly separated: deliberate crossings measured wristGap
-         * 0.01–0.02; incidental single-frame two-hand reads during normal use
-         * measured 0.08–0.12. The threshold sits between them.
-         */
-        const val EGG_COOLDOWN = 5000L
-        const val EGG_HEIGHT = 0.5f      // wrists must be above this (0 = top of frame) — logged only, not gated on
-        const val EGG_SPAN = 0.3f        // logged only, not gated on — see EGG_TIGHT_GAP for the real gate
-
-        /**
-         * Max wrist separation to trust a crossing outright, **as a multiple
-         * of hand size** rather than a raw fraction of the frame.
-         *
-         * Scaling matters as much as the value. A raw frame distance means
-         * something completely different depending on how far away you are:
-         * at arm's length your hands are large in frame and a genuine
-         * crossing leaves a comparatively wide raw gap, while from across the
-         * room everything shrinks, so an ordinary two-handed movement — one
-         * measured false fire came from rubbing both eyes about four feet
-         * out — lands inside a raw threshold tuned up close. Dividing by hand
-         * scale is the same normalization [PINCH_CLOSE] and [PINCH_OPEN]
-         * already use so pinch detection holds at any distance.
-         */
-        const val EGG_TIGHT_GAP = 0.6f
-
-        /**
-         * A third false-positive source, distinct from the loose-gap one
-         * above: MediaPipe occasionally reports one physical hand as two
-         * overlapping detections (visible in device logs as a "L,L" hand
-         * count), and on rare frames classifies one of the duplicates as the
-         * opposite hand — producing a fake crossed pair with a razor-thin
-         * wristGap, indistinguishable from a real cross by gap alone, because
-         * it's literally the same hand measured against itself. One measured
-         * false fire this way: wristGap 0.0199, mid one-handed drag.
-         *
-         * [EggCheck.avgGap] (every landmark, not just the wrist) is the
-         * differentiator: a duplicate stays just as close everywhere, since
-         * it's the same hand; two real crossed hands splay their fingers
-         * apart from the crossing point, so avgGap reads meaningfully above
-         * wristGap. Hand-scaled for the same reason as [EGG_TIGHT_GAP].
-         */
-        const val EGG_MIN_SPREAD = 0.12f
-
-        /**
-         * Both hands must be within this multiple of hand size of each other
-         * *vertically* too. A genuine wrist cross puts them at nearly the
-         * same height; two hands that merely pass each other in x — one high,
-         * one low, as when reaching across your face — do not. Raw
-         * [wristGap] alone can't tell those apart, since it only measures
-         * horizontal separation.
-         */
-        const val EGG_MAX_Y_GAP = 0.8f
-
-        /**
-         * How long without any real output — move, click, scroll, drag, or
-         * the easter egg — before the engine stops reacting to hands at all.
+         * How long without any real output — move, click, scroll or drag —
+         * before the engine stops reacting to hands at all.
          *
          * The camera sees whatever passes in front of it, not just deliberate
-         * trackpad use, and every false-positive fixed above came from
-         * incidental hand movement accidentally forming a real gesture shape.
-         * Going blind after a period of no genuine engagement means stray
-         * movement near an otherwise-idle phone can't do anything, at the
-         * cost of a deliberate gesture — [WAKE_HOLD] — being needed to resume.
+         * trackpad use, so incidental hand movement can otherwise form a real
+         * gesture shape by accident. Going blind after a period of no genuine
+         * engagement means stray movement near an otherwise-idle phone can't
+         * do anything, at the cost of a deliberate gesture — [WAKE_HOLD] —
+         * being needed to resume.
          */
         const val SLEEP_AFTER = 5_000L
 
@@ -175,14 +91,12 @@ class GestureEngine(private val realOut: Output) {
 
         /**
          * How long a tracking dropout during the wake hold is bridged without
-         * resetting it — the single-hand equivalent of [EGG_GRACE]. Measured
-         * device data showed this was necessary, not just theoretically
-         * possible: several real attempts accumulated well over half the
-         * required hold (one reached 2239 of 3000ms) before a single dropped
-         * frame reset it to zero, over and over. Single-hand "is this an open
-         * palm" tracking is more stable than the two-hand crossing case
-         * [EGG_GRACE] was written for, but not stable enough to demand a
-         * literally unbroken 3 full seconds.
+         * resetting it. Measured device data showed this was necessary, not
+         * just theoretically possible: several real attempts accumulated well
+         * over half the required hold (one reached 2239 of 3000ms) before a
+         * single dropped frame reset it to zero, over and over — hand tracking
+         * is not stable enough frame to frame to demand a literally unbroken
+         * three full seconds.
          */
         const val WAKE_GRACE = 400L
 
@@ -216,11 +130,6 @@ class GestureEngine(private val realOut: Output) {
     var sweeping = false; private set
     var dragging = false; private set
 
-    /** True while the crossed-palms pose is being held. */
-    var eggPosed = false; private set
-
-    private var eggCooldownUntil = Long.MIN_VALUE
-
     /** True once [SLEEP_AFTER] has elapsed with no real output; see [updateHands]. */
     var asleep = false; private set
 
@@ -245,7 +154,6 @@ class GestureEngine(private val realOut: Output) {
         override fun buttonDown() { lastActiveAt = currentNow; realOut.buttonDown() }
         override fun buttonUp() { lastActiveAt = currentNow; realOut.buttonUp() }
         override fun scroll(notches: Int) { lastActiveAt = currentNow; realOut.scroll(notches) }
-        override fun launchUrl() { lastActiveAt = currentNow; realOut.launchUrl() }
         override fun state(label: String, hint: String) = realOut.state(label, hint)
     }
 
@@ -307,9 +215,8 @@ class GestureEngine(private val realOut: Output) {
     /**
      * Drop all pointer state and let go of anything held.
      *
-     * Split out of [release] because the crossed-palms pose needs to stop the
-     * cursor dead without also clearing the pose's own timers or overwriting
-     * the label with "no hand".
+     * Split out of [release] because going to sleep needs to stop the cursor
+     * dead without overwriting the label with "no hand".
      */
     private fun resetPointer() {
         if (dragging) {
@@ -339,7 +246,6 @@ class GestureEngine(private val realOut: Output) {
     /** Called when the hand leaves frame, the tab is hidden, or tracking stops. */
     fun release() {
         resetPointer()
-        eggPosed = false
         out.state("no hand", "show your hand to the camera")
     }
 
@@ -348,105 +254,23 @@ class GestureEngine(private val realOut: Output) {
         isUp(lm, RING, RING_PIP), isUp(lm, PINK, PINK_PIP)
     ).count { it } >= 3
 
-    private var lastEggDiagAt = 0L
-
     /**
-     * Every condition around the crossed-palms pose, kept separate so a
-     * failed attempt can be logged with *which* signal looked wrong, and so
-     * [updateHands] can gate on [crossed] and [wristGap] alone without
-     * requiring [bothOpen] or [bothHigh] — see the trade-off note on
-     * [EGG_TIGHT_GAP].
+     * Blind until woken. Checked before anything else, so a sleeping phone
+     * reacts to nothing an incidental hand shape could form — that's the whole
+     * point of [SLEEP_AFTER]. Returns true if this call was consumed by
+     * sleep/wake handling and the caller should stop.
      */
-    /**
-     * All gaps are in multiples of hand size, not raw frame fractions, so
-     * every threshold holds at any distance from the camera — see
-     * [EGG_TIGHT_GAP].
-     */
-    private data class EggCheck(
-        val bothHandsFound: Boolean,
-        val bothOpen: Boolean = false,
-        val bothHigh: Boolean = false,
-        val wristGap: Float = Float.NaN,
-        val wristYGap: Float = Float.NaN,
-        val avgGap: Float = Float.NaN,
-        val crossed: Boolean = false
-    ) {
-        /**
-         * True only when the two hands look like genuinely different hands,
-         * not one physical hand MediaPipe reported as two overlapping
-         * detections. A duplicate has every landmark — not just the wrist —
-         * sitting about as close together as [wristGap]; two real hands
-         * crossing splay their fingers apart from the crossing point, so
-         * [avgGap] reads meaningfully larger. See [EGG_MIN_SPREAD].
-         */
-        val looksLikeTwoHands get() = bothHandsFound && avgGap - wristGap >= EGG_MIN_SPREAD
-
-        /** A real cross is tight in x *and* level in y — see [EGG_MAX_Y_GAP]. */
-        val tightAndLevel get() =
-            wristGap <= EGG_TIGHT_GAP && wristYGap <= EGG_MAX_Y_GAP
-    }
-
-    /**
-     * True crossing, using handedness rather than raw position.
-     *
-     * Landmarks alone can't tell "crossed" from "held close together side by
-     * side" — both put two hands near each other. What makes it a cross is
-     * that each hand ends up on the *other* side of the body: the subject's
-     * right hand swaps over to screen-left, the left hand to screen-right.
-     *
-     * The landmarks the app feeds in are already mirror-corrected for the
-     * front camera (see [AirFragment]'s capture step, done so that moving a
-     * hand right moves the cursor right) — which is also the convention
-     * MediaPipe's own handedness classifier assumes, so "screen-right" here
-     * lines up with the subject's actual right side. On the back camera,
-     * which isn't mirrored, handedness comes out flipped and this check will
-     * be backwards; the pose is meant to be used facing the phone.
-     */
-    private fun checkEggPose(hands: List<Hand>): EggCheck {
-        val right = hands.firstOrNull { it.isRight }?.landmarks
-        val left = hands.firstOrNull { !it.isRight }?.landmarks
-        if (right == null || left == null || right.size < 21 || left.size < 21) {
-            return EggCheck(bothHandsFound = false)
-        }
-        var gapSum = 0f
-        for (i in 0 until 21) gapSum += dist(right[i], left[i])
-        // wrist-to-knuckle on each hand, averaged: the same hand-size yardstick
-        // pinch detection uses, so these thresholds hold at any camera distance
-        val scale = max(
-            (dist(right[WRIST], right[MID_MCP]) + dist(left[WRIST], left[MID_MCP])) / 2f,
-            1e-6f
-        )
-        return EggCheck(
-            bothHandsFound = true,
-            bothOpen = palmOpenOf(right) && palmOpenOf(left),
-            bothHigh = right[WRIST].y <= EGG_HEIGHT && left[WRIST].y <= EGG_HEIGHT,
-            wristGap = abs(right[WRIST].x - left[WRIST].x) / scale,
-            wristYGap = abs(right[WRIST].y - left[WRIST].y) / scale,
-            avgGap = (gapSum / 21) / scale,
-            // uncrossed, the right hand sits at the larger x (screen-right);
-            // crossed, it has swapped past the left hand
-            crossed = right[WRIST].x < left[WRIST].x
-        )
-    }
-
-    /**
-     * Blind until woken. Checked first, ahead of even the crossed-palms pose,
-     * so a sleeping phone reacts to nothing an incidental hand shape could
-     * form — that's the whole point of [SLEEP_AFTER]. Returns true if this
-     * call was consumed by sleep/wake handling and the caller should stop.
-     */
-    private fun handleSleep(hands: List<Hand>, now: Long): Boolean {
+    private fun handleSleep(hands: List<List<Landmark>>, now: Long): Boolean {
         if (!asleep && now - lastActiveAt >= SLEEP_AFTER) {
             asleep = true
             resetPointer()
-            eggPosed = false
             wakeHoldStart = 0L
             logEv("sleep")
             out.state("sleeping", "hold an open palm to wake")
         }
         if (!asleep) return false
 
-        val lm = hands.firstOrNull()?.landmarks
+        val lm = hands.firstOrNull()
         val palmOpen = lm != null && lm.size >= 21 && palmOpenOf(lm)
         if (palmOpen) wakeLastOpenAt = now
 
@@ -476,51 +300,21 @@ class GestureEngine(private val realOut: Output) {
     }
 
     /**
-     * Entry point when the tracker can see more than one hand.
+     * The app's entry point: applies the sleep/wake gate, then hands off to
+     * ordinary single-hand tracking on [hands]`[0]`.
      *
-     * A genuine crossing fires immediately — see the class-level note on
-     * [EGG_TIGHT_GAP] for why this is a single-instant trigger rather than a
-     * held pose, and why openness/height aren't part of the gate. Otherwise
-     * this is ordinary single-hand tracking on [hands]`[0]`.
+     * Takes a list rather than one hand because the sleep gate has to see
+     * whatever the tracker reported, and because [HandOverlay] draws them all.
      *
      * Named separately from [update] rather than overloading it — both would
      * erase to the same JVM signature.
      */
-    fun updateHands(hands: List<Hand>, now: Long) {
+    fun updateHands(hands: List<List<Landmark>>, now: Long) {
         currentNow = now
         if (lastActiveAt == Long.MIN_VALUE) lastActiveAt = now
         if (handleSleep(hands, now)) return
 
-        val check = checkEggPose(hands)
-        if (check.bothHandsFound && now - lastEggDiagAt > 300L) {
-            lastEggDiagAt = now
-            logEv("egg_diag", mapOf(
-                "bothOpen" to check.bothOpen, "bothHigh" to check.bothHigh,
-                "wristGap" to check.wristGap, "wristYGap" to check.wristYGap,
-                "avgGap" to check.avgGap, "crossed" to check.crossed
-            ))
-        }
-
-        if (check.crossed && check.tightAndLevel && check.looksLikeTwoHands) {
-            eggPosed = true
-            resetPointer()
-            if (now >= eggCooldownUntil) {
-                eggCooldownUntil = now + EGG_COOLDOWN
-                out.launchUrl()
-                logEv("launch_url", mapOf(
-                    "wristGap" to check.wristGap, "wristYGap" to check.wristYGap,
-                    "avgGap" to check.avgGap
-                ))
-                out.state("link sent", "typing it on the host")
-            } else {
-                out.state("crossed palms", "cooling down…")
-            }
-            return
-        }
-
-        eggPosed = false
-
-        val first = hands.firstOrNull()?.landmarks
+        val first = hands.firstOrNull()
         if (first == null || first.size < 21) release() else update(first, now)
     }
 
@@ -744,12 +538,4 @@ class GestureEngine(private val realOut: Output) {
     }
 
     data class Landmark(val x: Float, val y: Float)
-
-    /**
-     * One tracked hand, tagged with which physical hand it is.
-     *
-     * [isRight] only has to be trustworthy for [checkEggPose] — single-hand
-     * pointing, clicking, dragging etc. never look at it.
-     */
-    data class Hand(val landmarks: List<Landmark>, val isRight: Boolean)
 }

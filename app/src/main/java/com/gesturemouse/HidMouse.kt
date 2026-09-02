@@ -32,63 +32,19 @@ class HidMouse(private val context: Context) {
     companion object {
         const val TAG = "GMouse"
         private const val REPORT_ID = 2
-        private const val KEYBOARD_REPORT_ID = 1
 
         const val BUTTON_LEFT = 1
         const val BUTTON_RIGHT = 2
         const val BUTTON_MIDDLE = 4
 
-        /** Milliseconds a key is held, and the gap before the next one. */
-        private const val KEY_HOLD = 14L
-        private const val KEY_GAP = 14L
-
         /**
-         * Composite descriptor: a mouse *and* a keyboard, told apart by report
-         * ID. The mouse keeps ID 2, exactly as it was before the keyboard
-         * existed, so nothing about pointer behaviour changes.
+         * Boot-mouse report descriptor plus a wheel.
          *
-         * Mouse reports are [buttons, dx, dy, wheel] — one byte each, with
+         * Layout of each report: [buttons, dx, dy, wheel] — one byte each, with
          * dx/dy/wheel signed and relative. Three button bits then five bits of
          * padding, because HID fields have to land on byte boundaries.
-         *
-         * Keyboard reports are the standard 8 bytes: [modifiers, reserved,
-         * key1..key6]. Six slots is the convention even though we only ever
-         * press one key at a time.
-         *
-         * NOTE: changing this descriptor invalidates every existing pairing. A
-         * host reads the HID service record once, while bonding, and caches it
-         * forever — a computer paired against the mouse-only version will never
-         * see the keyboard. Those hosts must be unpaired on both sides and
-         * paired again through the app.
          */
         private val DESCRIPTOR = byteArrayOf(
-            // ---- keyboard ----
-            0x05, 0x01,                                   // Usage Page (Generic Desktop)
-            0x09, 0x06,                                   // Usage (Keyboard)
-            0xA1.toByte(), 0x01,                          // Collection (Application)
-            0x85.toByte(), KEYBOARD_REPORT_ID.toByte(),   //   Report ID (1)
-            0x05, 0x07,                                   //   Usage Page (Keyboard)
-            0x19, 0xE0.toByte(),                          //   Usage Minimum (LeftControl)
-            0x29, 0xE7.toByte(),                          //   Usage Maximum (Right GUI)
-            0x15, 0x00,                                   //   Logical Minimum (0)
-            0x25, 0x01,                                   //   Logical Maximum (1)
-            0x75, 0x01,                                   //   Report Size (1 bit)
-            0x95.toByte(), 0x08,                          //   Report Count (8)
-            0x81.toByte(), 0x02,                          //   Input (Data, Var, Abs) — modifiers
-            0x95.toByte(), 0x01,                          //   Report Count (1)
-            0x75, 0x08,                                   //   Report Size (8 bits)
-            0x81.toByte(), 0x01,                          //   Input (Const) — reserved byte
-            0x95.toByte(), 0x06,                          //   Report Count (6)
-            0x75, 0x08,                                   //   Report Size (8 bits)
-            0x15, 0x00,                                   //   Logical Minimum (0)
-            0x25, 0x65,                                   //   Logical Maximum (101)
-            0x05, 0x07,                                   //   Usage Page (Keyboard)
-            0x19, 0x00,                                   //   Usage Minimum (0)
-            0x29, 0x65,                                   //   Usage Maximum (101)
-            0x81.toByte(), 0x00,                          //   Input (Data, Array) — 6 key slots
-            0xC0.toByte(),                                // End Collection
-
-            // ---- mouse ----
             0x05, 0x01,                          // Usage Page (Generic Desktop)
             0x09, 0x02,                          // Usage (Mouse)
             0xA1.toByte(), 0x01,                 // Collection (Application)
@@ -132,11 +88,6 @@ class HidMouse(private val context: Context) {
     private var proxy: BluetoothHidDevice? = null
     private var host: BluetoothDevice? = null
     private var buttons = 0
-
-    // typing is a long sequence of sends and sleeps, so it gets its own thread
-    // rather than blocking the HID callback executor
-    private val keyExecutor = Executors.newSingleThreadExecutor()
-    @Volatile private var typing = false
 
     /**
      * A getProfileProxy call is in flight.
@@ -275,9 +226,7 @@ class HidMouse(private val context: Context) {
             "Gesture Mouse",
             "Phone as an air trackpad",
             "GestureMouse",
-            // COMBO, not MOUSE: the descriptor carries a keyboard too, and some
-            // hosts use the subclass to decide what they're willing to route
-            BluetoothHidDevice.SUBCLASS1_COMBO,
+            BluetoothHidDevice.SUBCLASS1_MOUSE,
             DESCRIPTOR
         )
         // explicit QoS. passing null lets Windows negotiate its own defaults,
@@ -338,13 +287,8 @@ class HidMouse(private val context: Context) {
              */
             override fun onGetReport(device: BluetoothDevice?, type: Byte, id: Byte, bufferSize: Int) {
                 val d = device ?: return
-                val body = when {
-                    // a composite device gets polled for either report; answering
-                    // a keyboard poll with a mouse-shaped reply confuses the host
-                    id.toInt() == KEYBOARD_REPORT_ID -> ByteArray(8)
-                    bootProtocol -> byteArrayOf(buttons.toByte(), 0, 0)
-                    else -> byteArrayOf(buttons.toByte(), 0, 0, 0)
-                }
+                val body = if (bootProtocol) byteArrayOf(buttons.toByte(), 0, 0)
+                else byteArrayOf(buttons.toByte(), 0, 0, 0)
                 Log.i(TAG, "onGetReport type=$type id=$id -> replying ${body.size} bytes")
                 proxy?.replyReport(d, type, id, body)
             }
@@ -378,7 +322,6 @@ class HidMouse(private val context: Context) {
             adapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, proxy)
         } catch (_: Exception) {
         }
-        keyExecutor.shutdownNow()
         proxy = null
         host = null
         registered = false
@@ -468,90 +411,4 @@ class HidMouse(private val context: Context) {
         }
     }
 
-    // ---- keyboard -----------------------------------------------------------
-
-    /** One 8-byte keyboard report: [modifiers, reserved, key, 0, 0, 0, 0, 0]. */
-    private fun sendKey(mods: Int, usage: Int): Boolean {
-        val p = proxy ?: return false
-        val d = host ?: return false
-        val body = ByteArray(8)
-        body[0] = mods.toByte()
-        body[2] = usage.toByte()
-        return p.sendReport(d, KEYBOARD_REPORT_ID, body)
-    }
-
-    /** Press and release, with enough dwell that the host registers both. */
-    private fun tap(mods: Int, usage: Int): Boolean {
-        if (!sendKey(mods, usage)) return false
-        Thread.sleep(KEY_HOLD)
-        if (!sendKey(0, 0)) return false
-        Thread.sleep(KEY_GAP)
-        return true
-    }
-
-    private fun runScript(steps: List<HidKeys.Step>): Boolean {
-        for (step in steps) {
-            when (step) {
-                is HidKeys.Step.Wait -> Thread.sleep(step.ms)
-                is HidKeys.Step.Key -> if (!tap(step.mods, step.usage)) return false
-                is HidKeys.Step.Text -> for (c in step.text) {
-                    val s = HidKeys.stroke(c) ?: return false
-                    if (!tap(s.mods, s.usage)) return false
-                }
-            }
-        }
-        return true
-    }
-
-    /**
-     * Drive the host's own launcher to open [url].
-     *
-     * Runs on its own thread: the script is mostly sleeping, both between
-     * keystrokes and while a launcher window appears, and none of that can
-     * happen on the main thread or inside a HID callback.
-     *
-     * [onResult] is delivered on the main thread.
-     */
-    fun openUrl(
-        url: String,
-        os: HidKeys.HostOs,
-        onResult: ((Boolean, String) -> Unit)? = null
-    ) {
-        fun fail(why: String) {
-            Log.w(TAG, "openUrl refused: $why")
-            main.post { onResult?.invoke(false, why) }
-        }
-
-        if (host == null) return fail("not connected to a host")
-        if (bootProtocol) {
-            // boot protocol has no report IDs, so there is nowhere to address a
-            // keyboard report — the bytes would be read as mouse movement
-            return fail("host is in boot protocol — keyboard unavailable")
-        }
-        if (!HidKeys.isTypable(url)) return fail("that URL has characters this key map can't type")
-        if (typing) return fail("already typing")
-
-        typing = true
-        keyExecutor.execute {
-            // a held mouse button while a launcher opens is a recipe for
-            // dragging something across the host's desktop
-            releaseButtons()
-            val ok = try {
-                runScript(os.openUrlScript(url))
-            } catch (e: InterruptedException) {
-                Thread.currentThread().interrupt()
-                false
-            } catch (e: Exception) {
-                Log.e(TAG, "openUrl threw", e)
-                false
-            } finally {
-                sendKey(0, 0)      // never leave a key stuck down on the host
-                typing = false
-            }
-            Log.i(TAG, "openUrl finished ok=$ok os=${os.label}")
-            main.post {
-                onResult?.invoke(ok, if (ok) "opening on ${os.label}" else "the host stopped accepting keys")
-            }
-        }
-    }
 }

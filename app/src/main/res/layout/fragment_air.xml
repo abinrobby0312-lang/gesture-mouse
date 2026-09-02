@@ -84,18 +84,6 @@
             android:stepSize="100"
             android:value="1800" />
 
-        <!-- which launcher the crossed-palms gesture drives. HID sends key
-             positions, not characters, so the host OS has to be told. -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/hostOs"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:minWidth="0dp"
-            android:paddingHorizontal="12dp"
-            android:text="Windows"
-            android:textSize="10sp" />
-
         <com.google.android.material.button.MaterialButton
             android:id="@+id/flip"
             style="@style/Widget.Material3.Button.OutlinedButton"

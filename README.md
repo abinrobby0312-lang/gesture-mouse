@@ -140,6 +140,18 @@ Movement is **relative**, like a trackpad — your hand's position in frame neve
 maps to a screen coordinate. That's also why this works without the app ever
 knowing the host's screen size.
 
+#### It goes to sleep
+
+The camera sees whatever passes in front of it, not just deliberate use, so
+after **5 seconds** without a real action — move, click, scroll or drag — the
+Air tab stops reacting to hands entirely and the readout says *sleeping*. That
+way a phone propped on a desk can't have its cursor nudged by someone walking
+past.
+
+To wake it, hold **one open palm** steady for **3 seconds**. The readout counts
+down while you hold. A brief tracking glitch won't reset the count, but taking
+your hand away will.
+
 #### Two gears
 
 A far target wants speed; a small target wants precision. Hand shape picks which:

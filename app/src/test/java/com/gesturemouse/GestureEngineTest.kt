@@ -34,7 +34,6 @@ class GestureEngineTest {
         override fun buttonUp() { events += "up" }
         override fun scroll(notches: Int) { scrolled += notches; events += "scroll" }
         override fun state(label: String, hint: String) { this.label = label }
-        override fun launchUrl() { events += "launch" }
 
         fun reset() { events.clear(); dx = 0f; dy = 0f; scrolled = 0 }
         fun count(k: String) = events.count { it == k }
@@ -319,291 +318,18 @@ class GestureEngineTest {
         assertEquals(2, r.count("rclick"))
     }
 
-    // ---- crossed palms --------------------------------------------------------
-    // This one opens a window on someone else's screen, so the tests lean on the
-    // cases where it must *not* fire at least as hard as the case where it must.
-    //
-    // This is deliberately a single-instant trigger, not a held pose. Two
-    // earlier designs (a continuous hold; a hold with a memory of a momentary
-    // cross) both failed against real device data: at the exact moment wrists
-    // cross, MediaPipe's read is unreliable across the board — not just hand
-    // *count*, but "open" and "raised" too, both measured false at the actual
-    // crossing instants a real session caught. What's gated on now is a tight
-    // wristGap plus a genuine handedness order-swap — not openness, not height
-    // — and [looksLikeTwoHands], added after a real false fire turned out to be
-    // one physical hand MediaPipe reported as two overlapping detections.
+    // Helpers for the sleep/wake tests below, which go through updateHands()
+    // because that is where the sleep gate lives.
 
     private fun feedHands(
-        e: GestureEngine, c: Clock, hands: List<GestureEngine.Hand>, ms: Long
+        e: GestureEngine, c: Clock, hands: List<List<Landmark>>, ms: Long
     ) {
         var elapsed = 0L
         while (elapsed < ms) { c.t += 16; e.updateHands(hands, c.t); elapsed += 16 }
     }
 
-    private fun oneHand(landmarks: List<Landmark>, isRight: Boolean = true) =
-        listOf(GestureEngine.Hand(landmarks, isRight))
+    private fun oneHand(landmarks: List<Landmark>) = listOf(landmarks)
 
-    private fun mirroredAroundX(landmarks: List<Landmark>, centerX: Float) =
-        landmarks.map { Landmark(2 * centerX - it.x, it.y) }
-
-    /**
-     * A right hand at [rightX] and an anatomically mirrored left hand at
-     * [leftX]. Mirrored, not just translated, because a duplicate detection
-     * of one physical hand produces two *identically shaped* landmark sets —
-     * exactly what [GestureEngine.EGG_MIN_SPREAD] exists to reject — so a
-     * fixture meant to look like two real hands has to actually differ in
-     * shape, the way an anatomical left and right hand naturally do.
-     */
-    private fun twoHands(
-        rightX: Float, leftX: Float, handY: Float = 0.25f, idxUp: Boolean = true, others: Int = 3
-    ) = listOf(
-        GestureEngine.Hand(hand(handX = rightX, handY = handY, idxUp = idxUp, others = others), isRight = true),
-        GestureEngine.Hand(
-            mirroredAroundX(hand(handX = leftX, handY = handY, idxUp = idxUp, others = others), leftX),
-            isRight = false
-        )
-    )
-
-    /**
-     * Two hands, genuinely crossed and close: the right hand sits at the
-     * *smaller* x (swapped to screen-left) and the left hand at the larger x —
-     * see [GestureEngine.checkEggPose]. Open/raised by default since that's
-     * the intended pose, but neither is required to fire — see [crossedFistsAtAnyHeightStillLaunch].
-     */
-    private fun crossedPalms(gap: Float = 0.02f, handY: Float = 0.25f) =
-        twoHands(rightX = 0.5f - gap / 2f, leftX = 0.5f + gap / 2f, handY = handY)
-
-    /** Same shape as [crossedPalms] but each hand on its own, uncrossed side. */
-    private fun sideBySidePalms(gap: Float = 0.10f, handY: Float = 0.25f) =
-        twoHands(rightX = 0.5f + gap / 2f, leftX = 0.5f - gap / 2f, handY = handY)
-
-    /**
-     * The false-positive shape this app actually hit: one physical hand's
-     * landmarks, copied unchanged and offset by [gap] in each direction. This
-     * is what MediaPipe's own duplicate-detection artifact looks like — every
-     * landmark equally close, not just the wrist — as opposed to [twoHands],
-     * where mirroring makes the fingers splay apart from the crossing point.
-     */
-    private fun duplicateHandGhost(gap: Float = 0.02f, handY: Float = 0.25f): List<GestureEngine.Hand> {
-        val base = hand(handX = 0.5f, handY = handY, idxUp = true, others = 3)
-        return listOf(
-            GestureEngine.Hand(base.map { Landmark(it.x - gap / 2f, it.y) }, isRight = true),
-            GestureEngine.Hand(base.map { Landmark(it.x + gap / 2f, it.y) }, isRight = false)
-        )
-    }
-
-    @Test fun crossedPalmsLaunchTheUrlImmediately() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        c.t += 16
-        e.updateHands(crossedPalms(), c.t)
-        assertEquals("a single genuine crossing frame is enough — no hold required", 1, r.count("launch"))
-        assertTrue(e.eggPosed)
-    }
-
-    @Test fun sameHandsUncrossedNeverLaunch() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        // identical positions and gap to crossedPalmsLaunchTheUrlImmediately —
-        // the only difference is which hand is on which side
-        feedHands(e, c, sideBySidePalms(), 1500)
-        assertEquals("two hands held together is not the same as crossed", 0, r.count("launch"))
-        assertFalse(e.eggPosed)
-    }
-
-    @Test fun bothHandsSeenAsTheSameSideDoNotLaunch() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        // a plausible tracker misread: two hands, both classified "Right"
-        val hands = listOf(
-            GestureEngine.Hand(hand(handX = 0.45f, handY = 0.25f, idxUp = true, others = 3), isRight = true),
-            GestureEngine.Hand(hand(handX = 0.55f, handY = 0.25f, idxUp = true, others = 3), isRight = true)
-        )
-        feedHands(e, c, hands, 1500)
-        assertEquals("without a left hand there is nothing to check crossing against", 0, r.count("launch"))
-    }
-
-    // The trade-off this design deliberately makes: real crossing instants
-    // measured false for "open" and "raised" too, so requiring either would
-    // mean never firing on a genuine cross. Crossed fists at any height now
-    // fire — that's intentional, not a regression. wristGap + handedness
-    // order-swap alone is the selectivity, and it held up empirically.
-
-    @Test fun crossedFistsAtAnyHeightStillLaunch() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        val fists = twoHands(rightX = 0.49f, leftX = 0.51f, handY = 0.8f, idxUp = false, others = 0)
-        c.t += 16
-        e.updateHands(fists, c.t)
-        assertEquals(
-            "openness and height are not gated on — a real crossing instant reads false on both",
-            1, r.count("launch")
-        )
-    }
-
-    // A real false fire: one hand, dragged normally, occasionally reported by
-    // MediaPipe as two overlapping detections with one misclassified as the
-    // opposite hand — a fake crossed pair with a razor-thin wristGap. Gap
-    // alone can't reject this; looksLikeTwoHands can, because a duplicate
-    // stays just as close everywhere, not just at the wrist.
-
-    @Test fun aDuplicateDetectionOfOneHandDoesNotLaunch() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        c.t += 16
-        e.updateHands(duplicateHandGhost(), c.t)
-        assertEquals(
-            "the same hand measured against itself is not a crossing",
-            0, r.count("launch")
-        )
-    }
-
-    /**
-     * Every landmark except the wrist offset by a distinct, generous amount —
-     * unlike [twoHands] (which reuses [hand]'s handful of finger offsets and
-     * can coincidentally lose spread at specific gaps), avgGap here always
-     * clears [GestureEngine.EGG_MIN_SPREAD] by a wide margin regardless of
-     * wristGap. For isolating the wristGap boundary alone.
-     *
-     * [RICH_SCALE] is this fixture's wrist-to-knuckle distance — the yardstick
-     * the engine divides by, since [GestureEngine.EGG_TIGHT_GAP] is a multiple
-     * of hand size, not a raw frame fraction.
-     */
-    private fun richHands(rightX: Float, leftX: Float, handY: Float = 0.25f): List<GestureEngine.Hand> {
-        fun build(baseX: Float, sign: Float) = List(21) { i ->
-            if (i == GestureEngine.WRIST) Landmark(baseX, handY)
-            else Landmark(baseX + sign * (0.02f + i * 0.01f), handY)
-        }
-        return listOf(
-            GestureEngine.Hand(build(rightX, 1f), isRight = true),
-            GestureEngine.Hand(build(leftX, -1f), isRight = false)
-        )
-    }
-
-    /** [richHands]' MID_MCP sits 0.02 + 9*0.01 from its wrist. */
-    private val RICH_SCALE = 0.11f
-
-    private fun richHandsAtScaledGap(scaledGap: Float): List<GestureEngine.Hand> {
-        val raw = scaledGap * RICH_SCALE
-        return richHands(rightX = 0.5f - raw / 2f, leftX = 0.5f + raw / 2f)
-    }
-
-    @Test fun justWithinTheTightGapLaunches() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        c.t += 16
-        e.updateHands(richHandsAtScaledGap(GestureEngine.EGG_TIGHT_GAP - 0.1f), c.t)
-        assertEquals(1, r.count("launch"))
-    }
-
-    @Test fun justOutsideTheTightGapDoesNotLaunch() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        c.t += 16
-        e.updateHands(richHandsAtScaledGap(GestureEngine.EGG_TIGHT_GAP + 0.1f), c.t)
-        assertEquals("crossed but not tight enough to trust outright", 0, r.count("launch"))
-    }
-
-    /**
-     * The distance bug that prompted hand-scaling: rubbing both eyes about
-     * four feet from the camera fired the easter egg, because everything
-     * shrinks in frame at range and an ordinary two-handed movement landed
-     * inside a raw threshold tuned at arm's length. Same pose, same raw
-     * geometry, hands a quarter the size — must still be rejected.
-     */
-    @Test fun aDistantSmallHandedPoseDoesNotLaunch() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        val far = crossedPalms().map { hd ->
-            hd.copy(landmarks = hd.landmarks.map { Landmark(0.5f + (it.x - 0.5f) / 4f, 0.5f + (it.y - 0.5f) / 4f) })
-        }
-        // shrink the *pose* but not the separation: hands stay as far apart in
-        // raw frame terms as an up-close cross, which is exactly what a distant
-        // non-crossing movement looks like
-        val spread = far.mapIndexed { i, hd ->
-            val push = if (hd.isRight) -0.03f else 0.03f
-            hd.copy(landmarks = hd.landmarks.map { Landmark(it.x + push, it.y) })
-        }
-        feedHands(e, c, spread, 1500)
-        assertEquals("thresholds must hold at any distance from the camera", 0, r.count("launch"))
-    }
-
-    @Test fun aCrossThatIsNotLevelDoesNotLaunch() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        // tight in x, but one hand well above the other — hands passing each
-        // other rather than wrists crossing
-        val notLevel = listOf(
-            GestureEngine.Hand(hand(handX = 0.49f, handY = 0.15f, idxUp = true, others = 3), isRight = true),
-            GestureEngine.Hand(
-                mirroredAroundX(hand(handX = 0.51f, handY = 0.55f, idxUp = true, others = 3), 0.51f),
-                isRight = false
-            )
-        )
-        feedHands(e, c, notLevel, 1500)
-        assertEquals("a real cross is level, not one hand above the other", 0, r.count("launch"))
-    }
-
-    @Test fun handsHeldTooFarApartDoNotLaunch() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        feedHands(e, c, crossedPalms(gap = 0.5f), 1500)
-        assertEquals("hands apart is not the tight cross this trusts outright", 0, r.count("launch"))
-    }
-
-    @Test fun repeatedCrossedFramesLaunchOnlyOnceDueToCooldown() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        feedHands(e, c, crossedPalms(), 3000)
-        assertEquals("a cooldown, not a hold, is what limits repeat firing", 1, r.count("launch"))
-    }
-
-    @Test fun reposingInsideTheCooldownDoesNotRelaunch() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        feedHands(e, c, crossedPalms(), 1000)
-        assertEquals(1, r.count("launch"))
-        feedHands(e, c, oneHand(hand(idxUp = true)), 200)   // hands drop
-        feedHands(e, c, crossedPalms(), 1000)               // and cross again
-        assertEquals("the cooldown has to survive the hands dropping in between", 1, r.count("launch"))
-    }
-
-    @Test fun theCursorHoldsStillWhileHandsAreCrossed() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        feedHands(e, c, oneHand(hand(handX = 0.5f)), 200)
-        r.reset()
-        for (i in 1..40) {
-            c.t += 16
-            // both hands drifting sideways while still crossed
-            e.updateHands(crossedPalms().map { hd ->
-                hd.copy(landmarks = hd.landmarks.map { Landmark(it.x + 0.01f * i, it.y) })
-            }, c.t)
-        }
-        assertEquals("a crossing must not also steer the cursor", 0, r.count("move"))
-        assertFalse(e.onPad)
-    }
-
-    @Test fun oneHandStillDrivesTheCursorThroughUpdateHands() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        feedHands(e, c, oneHand(hand(handX = 0.3f)), 200)
-        assertTrue("a single hand must behave exactly as before", e.onPad)
-        r.reset()
-        for (i in 1..10) { c.t += 16; e.updateHands(oneHand(hand(handX = 0.3f + 0.01f * i)), c.t) }
-        assertTrue("and still move the cursor", r.count("move") > 0)
-        assertEquals(0, r.count("launch"))
-    }
-
-    @Test fun aSecondHandDoesNotDisturbNormalPointing() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        // pointing with one hand while the other rests far away — the
-        // handedness order happens to read as "crossed" here (whichever hand
-        // is labeled Right just happens to sit at the smaller x), but the
-        // wristGap is nowhere near tight enough to trust
-        val pair = listOf(
-            GestureEngine.Hand(hand(handX = 0.3f), isRight = true),
-            GestureEngine.Hand(hand(handX = 0.8f, handY = 0.8f, idxUp = false), isRight = false)
-        )
-        feedHands(e, c, pair, 200)
-        assertTrue(e.onPad)
-        assertEquals(0, r.count("launch"))
-    }
-
-    @Test fun losingTheHandsClearsThePose() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        c.t += 16
-        e.updateHands(crossedPalms(), c.t)
-        assertTrue(e.eggPosed)
-        e.release()
-        assertFalse(e.eggPosed)
-    }
 
     // ---- sleep / wake -----------------------------------------------------
     // The camera reacts to whatever passes in front of it, not just
@@ -644,16 +370,6 @@ class GestureEngineTest {
         r.reset()
         for (i in 1..10) { c.t += 16; e.updateHands(oneHand(hand(handX = 0.5f + 0.02f * i)), c.t) }
         assertEquals("a sleeping engine must not move the cursor", 0, r.count("move"))
-    }
-
-    @Test fun sleepingIgnoresTheEasterEggToo() {
-        val r = Recorder(); val e = GestureEngine(r); val c = Clock()
-        feedHands(e, c, oneHand(hand(handX = 0.5f)), GestureEngine.SLEEP_AFTER + 500)
-        assertTrue(e.asleep)
-        r.reset()
-        c.t += 16
-        e.updateHands(crossedPalms(), c.t)
-        assertEquals("sleeping means blind to every gesture, not just pointing", 0, r.count("launch"))
     }
 
     @Test fun holdingAnOpenPalmWakesUpAfterWakeHold() {
