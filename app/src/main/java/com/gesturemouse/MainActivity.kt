@@ -4,7 +4,6 @@ import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -51,9 +50,27 @@ class MainActivity : AppCompatActivity() {
         }.attach()
 
         b.pairButton.setOnClickListener { onPairPressed() }
+        b.helpButton.setOnClickListener { TutorialDialog.show(supportFragmentManager) }
 
         android.util.Log.i(HidMouse.TAG, "MainActivity.onCreate")
-        requestNeededPermissions()
+
+        // First run only — guarded on savedInstanceState so a rotation doesn't
+        // put it back up over whatever you were doing.
+        //
+        // On that first run the permission prompts wait until the walkthrough
+        // is done. Asking first buries the explanation under a system dialog,
+        // and asks for the camera before the user has been told the app is a
+        // mouse that reads hand gestures — which is both a worse first
+        // impression and a worse reason to tap Allow.
+        val firstRun = savedInstanceState == null && !TutorialDialog.hasBeenSeen(this)
+        if (firstRun) {
+            supportFragmentManager.setFragmentResultListener(
+                TutorialDialog.RESULT_DISMISSED, this
+            ) { _, _ -> requestNeededPermissions() }
+            TutorialDialog.show(supportFragmentManager)
+        } else {
+            requestNeededPermissions()
+        }
     }
 
     override fun onResume() {
@@ -105,11 +122,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showState(state: HidMouse.State, msg: String) {
-        val color = when (state) {
-            HidMouse.State.CONNECTED -> Color.parseColor("#4FE0C4")
-            HidMouse.State.WAITING, HidMouse.State.REGISTERING -> Color.parseColor("#FFC24B")
-            else -> Color.parseColor("#FF5C6E")
-        }
+        val color = ContextCompat.getColor(this, when (state) {
+            HidMouse.State.CONNECTED -> R.color.track
+            HidMouse.State.WAITING, HidMouse.State.REGISTERING -> R.color.fire
+            else -> R.color.fault
+        })
         (b.statusDot.background as? GradientDrawable)?.setColor(color)
         b.statusText.text = when (state) {
             HidMouse.State.CONNECTED -> "Connected to $msg"

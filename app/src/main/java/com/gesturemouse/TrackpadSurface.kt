@@ -2,7 +2,7 @@ package com.gesturemouse
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
+import androidx.core.content.ContextCompat
 import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
@@ -57,21 +57,27 @@ class TrackpadSurface @JvmOverloads constructor(
         strokeWidth = 3f
     }
     private val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#6B8189")
+        color = ContextCompat.getColor(context, R.color.dim)
         textSize = 34f
         textAlign = Paint.Align.CENTER
     }
     private val touchDot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#4FE0C4")
+        color = ContextCompat.getColor(context, R.color.track)
     }
     private var touches = mutableListOf<Pair<Float, Float>>()
+
+    private val borderDragging = ContextCompat.getColor(context, R.color.fire)
+    private val borderGlow = ContextCompat.getColor(context, R.color.track)
+    private val borderIdle = ContextCompat.getColor(context, R.color.line)
 
     override fun onDraw(canvas: Canvas) {
         val r = RectF(2f, 2f, width - 2f, height - 2f)
         border.color = when {
-            dragging -> Color.parseColor("#FF5C6E")
-            glow > 0f -> Color.parseColor("#4FE0C4")
-            else -> Color.parseColor("#263A41")
+            // amber, not the crimson `fault`: dragging is a live state, not an
+            // error, and it has to stay distinct from the neon-red glow
+            dragging -> borderDragging
+            glow > 0f -> borderGlow
+            else -> borderIdle
         }
         canvas.drawRoundRect(r, 10f, 10f, border)
 

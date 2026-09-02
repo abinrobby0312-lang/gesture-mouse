@@ -1,23 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <color name="ink">#FF0F1619</color>
-    <color name="panel">#FF162227</color>
-    <color name="line">#FF263A41</color>
-    <color name="paper">#FFC6D4D6</color>
-    <color name="dim">#FF6B8189</color>
-    <color name="track">#FF4FE0C4</color>
-    <color name="fire">#FFFFC24B</color>
-    <color name="fault">#FFFF5C6E</color>
+    <!--
+        Carbon fibre and neon red.
+
+        One deliberate choice worth knowing: `track` (the active/connected
+        accent) is the neon red, so red means *good* here. That leaves errors
+        needing to be told apart from it, which `fault` does by being much
+        darker rather than a different hue - a bright signal reads as live, a
+        dark one as dead, and both stay inside the palette.
+    -->
+    <color name="ink">#FF0A0A0C</color>       <!-- base, under the weave -->
+    <color name="panel">#FF141418</color>
+    <color name="line">#FF2A2A32</color>
+    <color name="paper">#FFE8E8EC</color>
+    <color name="dim">#FF7C7C88</color>
+    <color name="track">#FFFF1F3D</color>     <!-- neon red: active, connected -->
+    <color name="fire">#FFFFA62B</color>      <!-- amber: pending, waiting -->
+    <color name="fault">#FF8C2233</color>     <!-- deep crimson: error, off -->
+
+    <!-- Overlay colours carry their own alpha, so they're declared rather than
+         computed at draw time. -->
+    <color name="overlay_edge_on">#8CFF1F3D</color>
+    <color name="overlay_edge_off">#472A2A32</color>
+    <color name="overlay_hand_on">#BFFF1F3D</color>
+    <color name="overlay_hand_off">#807C7C88</color>
+    <color name="overlay_halo">#59FF1F3D</color>
 
     <style name="Theme.GestureMouse" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/track</item>
-        <item name="colorOnPrimary">@color/ink</item>
+        <item name="colorOnPrimary">@color/paper</item>
         <item name="colorSecondary">@color/fire</item>
         <item name="android:colorBackground">@color/ink</item>
         <item name="android:statusBarColor">@color/ink</item>
         <item name="android:navigationBarColor">@color/ink</item>
         <item name="android:textColor">@color/paper</item>
         <item name="tabIndicatorColor">@color/track</item>
+    </style>
+
+    <!--
+        Fullscreen variant for the tutorial dialog.
+
+        It must inherit from the app theme, not a plain android.R.style.* one:
+        MaterialButton and TabLayout resolve Material attributes at inflation
+        and throw outright under a non-Material theme, which would crash the
+        walkthrough on first launch — the very first thing a new user sees.
+    -->
+    <style name="Theme.GestureMouse.Fullscreen" parent="Theme.GestureMouse">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@color/ink</item>
     </style>
 </resources>

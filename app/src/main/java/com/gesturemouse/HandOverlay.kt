@@ -2,7 +2,7 @@ package com.gesturemouse
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
+import androidx.core.content.ContextCompat
 import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.View
@@ -33,17 +33,22 @@ class HandOverlay @JvmOverloads constructor(
     private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 5f
-        color = Color.parseColor("#FFC24B")
+        color = ContextCompat.getColor(context, R.color.track)
     }
     private val halo = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 3f
-        color = Color.parseColor("#59FFC24B")
+        color = ContextCompat.getColor(context, R.color.overlay_halo)
     }
     private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 6f
     }
+
+    private val edgeOn = ContextCompat.getColor(context, R.color.overlay_edge_on)
+    private val edgeOff = ContextCompat.getColor(context, R.color.overlay_edge_off)
+    private val handOn = ContextCompat.getColor(context, R.color.overlay_hand_on)
+    private val handOff = ContextCompat.getColor(context, R.color.overlay_hand_off)
 
     fun setHands(hands: List<List<GestureEngine.Landmark>>, onPad: Boolean, sweeping: Boolean) {
         this.hands = hands
@@ -54,13 +59,13 @@ class HandOverlay @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         // the whole frame is the pad; the edge glows while a hand is on it
-        edge.color = if (onPad) Color.parseColor("#8C4FE0C4") else Color.parseColor("#47263A41")
+        edge.color = if (onPad) edgeOn else edgeOff
         canvas.drawRect(3f, 3f, width - 3f, height - 3f, edge)
 
         val drawable = hands.filter { it.size >= 21 }
         if (drawable.isEmpty()) return
 
-        val active = if (onPad) Color.parseColor("#BF4FE0C4") else Color.parseColor("#806B8189")
+        val active = if (onPad) handOn else handOff
         bone.color = active
         joint.color = active
 

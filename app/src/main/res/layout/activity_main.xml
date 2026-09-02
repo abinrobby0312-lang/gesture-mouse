@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/ink"
+    android:background="@drawable/carbon_fiber"
     android:fitsSystemWindows="true">
 
     <!-- connection strip: this is the only thing standing between the app and
@@ -42,6 +42,20 @@
             android:minWidth="0dp"
             android:paddingHorizontal="14dp"
             android:text="Pair"
+            android:textSize="11sp" />
+
+        <!-- reopens the first-run walkthrough; none of the gestures are
+             discoverable by poking at the screen, so it needs a way back -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/helpButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:minWidth="0dp"
+            android:paddingHorizontal="12dp"
+            android:text="?"
+            android:contentDescription="Show the walkthrough"
             android:textSize="11sp" />
     </LinearLayout>
 

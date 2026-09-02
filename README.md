@@ -45,6 +45,15 @@ external files directory — recording gesture timings used for tuning
 thresholds. It contains no images and no personal data, is capped at 512 KB,
 and goes away when the app is uninstalled. Nothing is ever uploaded.
 
+## First run
+
+A five-step walkthrough opens the first time you launch the app, covering
+pairing, both sets of gestures, and the sleep behaviour. It's shown once and
+then remembered — reopen it any time with the **?** button in the top right.
+
+Permission prompts deliberately wait until the walkthrough is finished, so the
+camera is only requested after you've been told what it's for.
+
 ## Connect
 
 1. Open the app and grant Bluetooth + Camera when asked.
