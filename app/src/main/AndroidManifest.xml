@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Legacy Bluetooth permissions, superseded on Android 12+ -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
+    <!-- Android 12+ runtime Bluetooth permissions. CONNECT drives the HID
+         profile; ADVERTISE lets the phone become discoverable so the computer
+         can find it in its Bluetooth settings. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+
+    <!-- SCAN is what lets the app find an unpaired computer itself, rather
+         than only listing devices the phone already knows about.
+         neverForLocation keeps this from dragging in location permission. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.GestureMouse">
+
+        <!-- fullUser, not fullSensor: it follows the system auto-rotate toggle
+             instead of overriding it, so locking rotation still works.
+
+             configChanges matters more than it looks. Without it a rotation
+             recreates the activity, and onDestroy stops the HID service — so
+             every turn of the phone would drop the Bluetooth connection and
+             need a reconnect. Handling the change ourselves keeps the mouse
+             alive across rotation. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="fullUser"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <color name="ink">#FF0F1619</color>
+    <color name="panel">#FF162227</color>
+    <color name="line">#FF263A41</color>
+    <color name="paper">#FFC6D4D6</color>
+    <color name="dim">#FF6B8189</color>
+    <color name="track">#FF4FE0C4</color>
+    <color name="fire">#FFFFC24B</color>
+    <color name="fault">#FFFF5C6E</color>
+
+    <style name="Theme.GestureMouse" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/track</item>
+        <item name="colorOnPrimary">@color/ink</item>
+        <item name="colorSecondary">@color/fire</item>
+        <item name="android:colorBackground">@color/ink</item>
+        <item name="android:statusBarColor">@color/ink</item>
+        <item name="android:navigationBarColor">@color/ink</item>
+        <item name="android:textColor">@color/paper</item>
+        <item name="tabIndicatorColor">@color/track</item>
+    </style>
+</resources>

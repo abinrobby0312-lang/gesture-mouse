@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Gesture Mouse</string>
+    <string name="tab_trackpad">Trackpad</string>
+    <string name="tab_air">Air</string>
+</resources>

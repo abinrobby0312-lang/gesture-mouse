@@ -1,0 +1,32 @@
+# --- secrets: never commit these -------------------------------------------
+# The release keystore and its passwords. Losing the keystore means you can no
+# longer publish updates that install over an existing copy of the app, so keep
+# a backup somewhere safe and offline — but not here.
+keystore/
+*.jks
+*.keystore
+keystore.properties
+
+# --- machine-specific -------------------------------------------------------
+# Points at wherever this machine keeps the Android SDK; every clone generates
+# its own, and committing one breaks everyone else's build.
+local.properties
+
+# --- build output -----------------------------------------------------------
+build/
+app/build/
+.gradle/
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+
+# --- IDE --------------------------------------------------------------------
+.idea/
+*.iml
+.DS_Store
+
+# --- captured gesture telemetry ---------------------------------------------
+# Pulled off a device for tuning; session-specific and not worth sharing.
+*.jsonl
