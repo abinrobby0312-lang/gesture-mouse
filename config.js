@@ -1,13 +1,10 @@
-// Site configuration — the only file to edit when setting things up.
+// Site configuration. (The offered app version lives in assets/release.json.)
 window.GM_CONFIG = {
-  // GitHub repo whose *published* releases carry GestureMouse.apk. Until one
-  // is published the download area invites people to join the list instead.
-  repo: "abinrobby0312-lang/gesture-mouse",
-
-  // Oldest release the site will offer. v1.0.0 and v1.1.0 are still published
-  // on GitHub but predate the connection fixes; below this version the page
-  // treats it as "no release yet" rather than linking a build that won't connect.
-  minVersion: "1.7.0",
+  // The download panel reads assets/release.json (version, size, SHA-256,
+  // link), updated with each release — not GitHub's API, which is rate-limited
+  // per IP (mobile carriers share IPs across thousands of users) and blocked
+  // by some ad blockers. No release.json, or "version": null, shows the
+  // beta-list signup instead of a download.
 
   // Supabase project for sign-ups, compatibility reports and messages (see
   // site/supabase/schema.sql). Leave empty and the forms say "opening soon"

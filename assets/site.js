@@ -9,8 +9,8 @@
   if (!isAndroid && !isIOS) document.documentElement.classList.add("is-desktop");
 
   // ---------------------------------------------------------------- download
-  // The newest *published* GitHub release decides what the panel offers. A
-  // draft or no release at all means "beta list" rather than a dead link.
+  // assets/release.json, same origin, decides what the panel offers. Missing
+  // or without a version means "beta list" rather than a dead link.
   async function renderDownload() {
     const box = $("#download-state");
     if (!box) return;
@@ -21,24 +21,21 @@
     }
     let rel = null;
     try {
-      const r = await fetch(`https://api.github.com/repos/${cfg.repo}/releases/latest`,
-        { headers: { Accept: "application/vnd.github+json" } });
+      const r = await fetch("assets/release.json", { cache: "no-cache" });
       if (r.ok) rel = await r.json();
-    } catch (_) { /* offline or rate-limited: fall through to the list */ }
+    } catch (_) { /* offline: fall through to the list */ }
 
-    const recent = rel && !older(rel.tag_name, cfg.minVersion || "0");
-    const apk = recent && (rel.assets || []).find(a => /\.apk$/i.test(a.name));
-    if (!apk) {
+    if (!rel || !rel.version || !rel.url) {
       box.innerHTML = `<p class="status-note">The public beta is opening soon.</p>
         <a class="btn primary" href="#updates">Join the list — get the download link first</a>`;
       return;
     }
-    const mb = (apk.size / 1048576).toFixed(0);
-    const sha = ((rel.body || "").match(/\b[0-9a-f]{64}\b/i) || [])[0];
+    const mb = rel.size ? ` · ${(rel.size / 1048576).toFixed(0)} MB` : "";
+    const sha = /^[0-9a-f]{64}$/i.test(rel.sha256 || "") ? rel.sha256 : "";
     box.innerHTML = `
-      <a class="btn primary" href="${apk.browser_download_url}" data-dl>Download for Android</a>
-      <div class="meta">Version ${escapeHtml(rel.tag_name.replace(/^v/, ""))} · ${mb} MB · Android 9 or newer
-        · <a href="${rel.html_url}">What's new</a>
+      <a class="btn primary" href="${escapeHtml(rel.url)}">Download for Android</a>
+      <div class="meta">Version ${escapeHtml(rel.version)}${mb} · Android 9 or newer
+        ${rel.notes ? `· <a href="${escapeHtml(rel.notes)}">What's new</a>` : ""}
         ${sha ? `<br>SHA-256 <code>${sha}</code>` : ""}</div>`;
   }
 
@@ -161,17 +158,6 @@
     } catch (_) {
       body.innerHTML = `<tr><td colspan="5" class="dim">Couldn't load the list.</td></tr>`;
     }
-  }
-
-  /** "v1.1.0" older than "1.7.0"? Numeric, part by part. */
-  function older(tag, min) {
-    const a = String(tag).replace(/^v/, "").split(".").map(Number);
-    const b = String(min).replace(/^v/, "").split(".").map(Number);
-    for (let i = 0; i < Math.max(a.length, b.length); i++) {
-      const x = a[i] || 0, y = b[i] || 0;
-      if (x !== y) return x < y;
-    }
-    return false;
   }
 
   function escapeHtml(s) {
