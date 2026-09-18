@@ -16,9 +16,9 @@
   <meta property="og:image" content="https://abinrobby0312-lang.github.io/gesture-mouse/assets/og.png">
   <meta property="og:url" content="https://abinrobby0312-lang.github.io/gesture-mouse/">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="stylesheet" href="assets/site.css?v=202609181841">
-  <script src="config.js?v=202609181841" defer></script>
-  <script src="assets/site.js?v=202609181841" defer></script>
+  <link rel="stylesheet" href="assets/site.css?v=202609181851">
+  <script src="config.js?v=202609181851" defer></script>
+  <script src="assets/site.js?v=202609181851" defer></script>
 </head>
 <body>
 
@@ -38,7 +38,6 @@
   <section class="hero">
     <div class="wrap">
       <div>
-        <p class="eyebrow">Free · Android 9+</p>
         <h1>Your phone is a <em>mouse and keyboard.</em></h1>
         <p class="lead">A trackpad, hand-gesture control through the camera, and typing with your phone's keyboard — over Bluetooth. Your computer sees an ordinary wireless mouse, so there's nothing to install on it.</p>
 
@@ -50,11 +49,6 @@
           </div>
         </div>
 
-        <ul class="facts">
-          <li>No account</li>
-          <li>Nothing uploaded — the app has no internet access</li>
-          <li>Works with Windows</li>
-        </ul>
       </div>
       <div>
         <img class="hero-logo for-light" src="assets/logo-light.webp" alt="Gesture Mouse logo" width="560" height="560">
@@ -81,25 +75,64 @@
   </section>
 
   <section id="install">
-    <div class="wrap" style="display:grid;gap:40px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));align-items:center">
+    <div class="wrap install-grid">
       <div>
         <p class="eyebrow">Set up in two minutes</p>
         <h2>Install and connect</h2>
-        <ol class="steps" style="margin-top:20px">
-          <li><h3>Download on your phone</h3><p>Use the button at the top of this page on your Android phone.</p></li>
-          <li><h3>Allow the install</h3><p>Android asks whether your browser may install apps — tap <strong>Settings</strong>, allow it, and go back. You'll see this for any app that isn't from the Play Store.</p></li>
-          <li><h3>Open it and keep it on screen</h3><p>Grant Bluetooth (and Camera if you want air gestures).</p></li>
-          <li><h3>Pair from your computer</h3><p>On the computer: Bluetooth settings → <strong>Add device</strong> → pick your phone → confirm the code. The dot turns green when it's connected. Next time, just open the app.</p></li>
+        <p class="dim small">Tap a step to see it on the phone.</p>
+        <ol class="steps" style="margin-top:16px">
+          <li><button class="step" type="button" data-step="1" aria-controls="demo">
+            <span class="step-title">Download on your phone</span>
+            <span class="step-body">Use the button at the top of this page on your Android phone.</span></button></li>
+          <li><button class="step" type="button" data-step="2" aria-controls="demo">
+            <span class="step-title">Allow the install</span>
+            <span class="step-body">Android asks whether your browser may install apps — tap <strong>Settings</strong>, allow it, and go back. You'll see this for any app that isn't from the Play Store.</span></button></li>
+          <li><button class="step" type="button" data-step="3" aria-controls="demo">
+            <span class="step-title">Open it and keep it on screen</span>
+            <span class="step-body">Grant Bluetooth (and Camera if you want air gestures).</span></button></li>
+          <li><button class="step" type="button" data-step="4" aria-controls="demo">
+            <span class="step-title">Pair from your computer</span>
+            <span class="step-body">On the computer: Bluetooth settings → <strong>Add device</strong> → pick your phone → confirm the code. The dot turns green when it's connected. Next time, just open the app.</span></button></li>
         </ol>
       </div>
-      <div class="phone" role="img" aria-label="The app's trackpad screen, connected to a computer">
-        <div class="scr">
-          <div class="strip"><span class="dot"></span>Connected<span class="gear">⚙</span></div>
-          <div class="tabs"><span class="on">Trackpad</span><span>Air</span></div>
-          <div class="pad"><span class="touch"></span><span class="kb">⌨</span></div>
-          <div class="btns"><span>Left</span><span>Mid</span><span>Right</span></div>
+
+      <figure class="demo-wrap">
+        <div class="phone" id="demo" data-step="1">
+          <div class="scr">
+            <!-- 1: the download page -->
+            <div class="screen s1" aria-hidden="true">
+              <div class="urlbar">abinrobby0312-lang.github.io</div>
+              <img class="s1-logo" src="assets/mark-dark.webp" alt="">
+              <div class="s1-title">Gesture Mouse</div>
+              <div class="fake-btn">Download for Android</div>
+              <div class="progress"><span></span></div>
+              <div class="s1-note">GestureMouse.apk</div>
+            </div>
+            <!-- 2: Android's unknown-sources switch -->
+            <div class="screen s2" aria-hidden="true">
+              <div class="s2-head">Install unknown apps</div>
+              <div class="s2-app"><span class="s2-icon"></span>Chrome</div>
+              <div class="s2-row"><span>Allow from this source</span><span class="toggle"><i></i></span></div>
+              <div class="s2-install">Install</div>
+            </div>
+            <!-- 3 and 4: the app itself -->
+            <div class="screen app" aria-hidden="true">
+              <div class="strip"><span class="dot"></span><span class="st st3">Not connected</span><span class="st st4">Connected to your PC</span><span class="gear">⚙</span></div>
+              <div class="tabs"><span class="on">Trackpad</span><span>Air</span></div>
+              <div class="pad" id="demo-pad"><span class="pad-hint">Drag here</span><span class="touch"></span><button class="kb" type="button" id="demo-kb" aria-label="Show keyboard" tabindex="-1">⌨</button></div>
+              <div class="btns"><span>Left</span><span>Mid</span><span>Right</span></div>
+              <div class="fake-kb"><span>q w e r t y u i o p</span><span>a s d f g h j k l</span><span>⇧ z x c v b n m ⌫</span></div>
+              <div class="perm">
+                <div class="perm-box">
+                  <div class="perm-t">Allow <b>Gesture Mouse</b> to find and connect to nearby devices?</div>
+                  <div class="perm-b"><span>Allow</span><span>Don't allow</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+        <figcaption class="demo-cap" id="demo-cap" aria-live="polite">Step 1 — download on your phone</figcaption>
+      </figure>
     </div>
   </section>
 
@@ -114,7 +147,13 @@
           <tbody id="compat-body"><tr><td colspan="5" class="dim">Loading…</td></tr></tbody>
         </table>
       </div>
-      <p style="margin-top:16px">Tried it? <a href="report.html">Tell us how it went on your phone</a> — it takes 20 seconds and helps everyone with the same model.</p>
+      <div class="cta-card">
+        <div>
+          <h3>Tried it on your phone?</h3>
+          <p class="dim">Tell us how it went — 20 seconds, no name or email. It's how the next person with your phone knows it'll work.</p>
+        </div>
+        <a class="btn primary" href="report.html">Report how it works on your phone</a>
+      </div>
     </div>
   </section>
 
@@ -123,7 +162,7 @@
       <p class="eyebrow">Questions</p>
       <h2>FAQ</h2>
       <details><summary>Why does Android warn me before installing?</summary>
-        <div>Android shows that for every app installed outside the Play Store. The app is signed with the same key every release, and each download lists its SHA-256 fingerprint so you can check the file is the real one.</div></details>
+        <div>Android shows that for every app installed outside the Play Store. The app is signed with the same key every release, and each release's notes on GitHub list its SHA-256 fingerprint if you'd like to check the file is the real one.</div></details>
       <details><summary>Does it collect or upload anything?</summary>
         <div>No. The app has no internet permission at all — it physically can't send data anywhere. Hand tracking happens on the phone and the camera feed is never stored. The only data we hold is what you choose to send through the forms on this site. <a href="privacy.html">Privacy policy</a>.</div></details>
       <details><summary>Which computers does it work with?</summary>
