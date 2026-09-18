@@ -84,9 +84,10 @@ overshoot vs. clutching per input method; `MainActivity` owns both trackers
 and resets one when its speed changes. Themes: `values/colors.xml` is the new
 light palette, `values-night/colors.xml` the original dark one, applied via
 `AppCompatDelegate` before `super.onCreate`; default stays Dark. Checked on
-the phone: gear placement, sheet over a live connection, Sensitivity and
-Scrolling tabs. **Not yet eyeballed:** the Appearance, Connection and Help tabs,
-light theme, and the email hand-off.
+the phone: gear placement, sheet over a live connection, and all five tabs
+including the light theme (the last three by the owner, 2026-09-18). The
+contact address is never displayed; it appears only as the recipient in the
+email app.
 
 **Also verified:** reconnect on app launch to the remembered host (~1 s), and
 recovery from a dropped link.
