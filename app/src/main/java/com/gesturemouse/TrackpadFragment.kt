@@ -30,6 +30,24 @@ class TrackpadFragment : Fragment() {
         holdButton(b.btnLeft, HidMouse.BUTTON_LEFT)
         holdButton(b.btnMiddle, HidMouse.BUTTON_MIDDLE)
         holdButton(b.btnRight, HidMouse.BUTTON_RIGHT)
+
+        // There's no way to open this automatically when a text field on the
+        // computer gets focus: a HID keyboard hears nothing from the host but
+        // its LED state. So it's a button.
+        b.keyboardInput.mouse = mouse
+        b.keyboardInput.onVisibilityChanged = { open -> b.btnKeyboard.isChecked = open }
+        b.btnKeyboard.isCheckable = true
+        b.btnKeyboard.setOnClickListener {
+            if (mouse?.isConnected != true) {
+                b.btnKeyboard.isChecked = false
+                android.widget.Toast.makeText(
+                    requireContext(), "Connect to a computer first", android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+            b.keyboardInput.toggle()
+            b.btnKeyboard.isChecked = b.keyboardInput.isOpen
+        }
     }
 
     @Suppress("ClickableViewAccessibility")
@@ -46,11 +64,14 @@ class TrackpadFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         b.surface.mouse = mouse
+        b.keyboardInput.mouse = mouse
     }
 
     override fun onPause() {
         super.onPause()
         mouse?.releaseButtons()
+        // switching to the Air tab shouldn't leave the keyboard up over it
+        if (b.keyboardInput.isOpen) b.keyboardInput.close()
     }
 
     override fun onDestroyView() {

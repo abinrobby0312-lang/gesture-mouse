@@ -30,3 +30,8 @@ captures/
 # --- captured gesture telemetry ---------------------------------------------
 # Pulled off a device for tuning; session-specific and not worth sharing.
 *.jsonl
+
+# --- local release output ----------------------------------------------------
+# Shipped APKs and their checksums; built from the release keystore here.
+dist/
+gmouse-test.log

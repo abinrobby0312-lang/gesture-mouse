@@ -26,8 +26,8 @@ android {
         // Bump versionCode for every build you hand to someone — Android
         // refuses to install an APK whose versionCode is lower than what's
         // already on the device.
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 5
+        versionName = "1.4.0"
 
         // phones are ARM. shipping the x86 MediaPipe libs adds ~20 MB that no
         // real handset will ever load.

@@ -98,6 +98,25 @@ drops it when the app is backgrounded and the app re-registers it on return.
   pairing prompt pauses the app, and the resume after it must not start a
   competing connection.
 
+## Keyboard
+
+Tap **⌨** in the trackpad's bottom-right corner and the phone's own keyboard
+opens; whatever you type goes to the computer as keystrokes. Any keyboard app
+works — including swipe typing, autocorrect and voice typing, which rewrite
+whole words: the app keeps a mirror of what's been typed and sends only the
+difference (backspaces for what was removed, keys for what was added).
+
+- **It can't open by itself** when you click a text field on the computer. A
+  Bluetooth keyboard hears nothing from the computer except the Caps/Num Lock
+  lights; knowing about text fields would need software on the computer.
+- **US key layout.** A keyboard sends key positions, not characters, and the
+  computer maps them through *its* layout. Letters and digits are right
+  everywhere; on a computer set to e.g. French or German some symbols come out
+  as different ones. Characters with no US key (é, emoji) are skipped.
+- **Upgrading from 1.3 or earlier:** the phone now describes itself as a mouse
+  *and* keyboard. Computers cache that description at pairing, so remove the
+  pairing on both sides and pair once more, or the keys are ignored.
+
 ### The computer's name, not the app's
 
 Bluetooth advertises the **adapter** name, so the phone appears under whatever
@@ -224,8 +243,10 @@ drag the cursor with them.
 app/src/main/java/com/gesturemouse/
   HidMouse.kt          Bluetooth HID mouse — descriptor, reports, connection
   GestureEngine.kt     hand landmarks -> mouse intents (pure logic, unit-tested)
+  KeyMap.kt            characters -> HID key usages, US layout (unit-tested)
+  KeyboardInput.kt     phone keyboard -> keystrokes, by diffing a mirror
   MainActivity.kt      tabs, permissions, status strip + connect help
-  TrackpadFragment.kt  touch tab
+  TrackpadFragment.kt  touch tab + keyboard button
   TrackpadSurface.kt   the touch surface itself
   AirFragment.kt       camera + MediaPipe, feeds GestureEngine
   HandOverlay.kt       skeleton and gear indicator

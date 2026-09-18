@@ -39,7 +39,7 @@ class TutorialDialog : DialogFragment() {
         Page(
             "Step 2 of 5",
             "Pair it first",
-            "Pair it like any Bluetooth mouse.\n\n" +
+            "Pair it like any Bluetooth mouse and keyboard.\n\n" +
                 "1.  Keep this app open\n" +
                 "2.  On the computer, open Bluetooth settings → Add device\n" +
                 "3.  Pick this phone and confirm the code on both screens\n\n" +
@@ -55,7 +55,8 @@ class TutorialDialog : DialogFragment() {
                 "•  Tap — left click\n" +
                 "•  Two-finger drag — scroll\n" +
                 "•  Two-finger tap — right click\n" +
-                "•  Tap, then press and hold — drag something"
+                "•  Tap, then press and hold — drag something\n" +
+                "•  ⌨ in the corner — type on the computer with this phone's keyboard"
         ),
         Page(
             "Step 4 of 5",

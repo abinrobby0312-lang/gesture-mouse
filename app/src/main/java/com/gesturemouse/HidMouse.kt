@@ -63,6 +63,15 @@ class HidMouse(private val context: Context) {
     companion object {
         const val TAG = "GMouse"
         private const val REPORT_ID = 2
+        private const val KEYBOARD_REPORT_ID = 1
+
+        /**
+         * Gap after each keyboard report. Reports sent back to back can be
+         * coalesced or dropped on the way, and a lost key-up turns into a key
+         * that repeats until the next report — so every stroke is a separate
+         * press and release with a little air between them.
+         */
+        private const val KEY_GAP_MS = 8L
 
         const val BUTTON_LEFT = 1
         const val BUTTON_RIGHT = 2
@@ -100,13 +109,57 @@ class HidMouse(private val context: Context) {
         private const val KEY_LAST_HOST = "lastHost"
 
         /**
-         * Boot-mouse report descriptor plus a wheel.
+         * A keyboard (report ID 1) and a boot mouse plus wheel (report ID 2).
          *
-         * Layout of each report: [buttons, dx, dy, wheel] — one byte each, with
+         * Mouse reports: [buttons, dx, dy, wheel] — one byte each, with
          * dx/dy/wheel signed and relative. Three button bits then five bits of
          * padding, because HID fields have to land on byte boundaries.
+         *
+         * Changing this descriptor changes the SDP record, which a host caches
+         * at pairing: every computer paired to an older version has to be
+         * re-paired before it sees the change.
          */
         private val DESCRIPTOR = byteArrayOf(
+            // ---- keyboard, report ID 1 ----
+            // The boot-keyboard layout: [modifiers, reserved, key1..key6]. It
+            // is also exactly what a host in boot protocol expects, so the same
+            // report serves both modes. The LED output report carries nothing
+            // the phone uses, but hosts that set Caps Lock expect to be able to.
+            0x05, 0x01,                          // Usage Page (Generic Desktop)
+            0x09, 0x06,                          // Usage (Keyboard)
+            0xA1.toByte(), 0x01,                 // Collection (Application)
+            0x85.toByte(), KEYBOARD_REPORT_ID.toByte(), // Report ID (1)
+            0x05, 0x07,                          //   Usage Page (Keyboard/Keypad)
+            0x19, 0xE0.toByte(),                 //   Usage Minimum (Left Control)
+            0x29, 0xE7.toByte(),                 //   Usage Maximum (Right GUI)
+            0x15, 0x00,                          //   Logical Minimum (0)
+            0x25, 0x01,                          //   Logical Maximum (1)
+            0x75, 0x01,                          //   Report Size (1)
+            0x95.toByte(), 0x08,                 //   Report Count (8)
+            0x81.toByte(), 0x02,                 //   Input (Data, Var, Abs) — modifiers
+            0x95.toByte(), 0x01,                 //   Report Count (1)
+            0x75, 0x08,                          //   Report Size (8)
+            0x81.toByte(), 0x01,                 //   Input (Const) — reserved
+            0x95.toByte(), 0x05,                 //   Report Count (5)
+            0x75, 0x01,                          //   Report Size (1)
+            0x05, 0x08,                          //   Usage Page (LEDs)
+            0x19, 0x01,                          //   Usage Minimum (Num Lock)
+            0x29, 0x05,                          //   Usage Maximum (Kana)
+            0x91.toByte(), 0x02,                 //   Output (Data, Var, Abs) — LEDs
+            0x95.toByte(), 0x01,                 //   Report Count (1)
+            0x75, 0x03,                          //   Report Size (3)
+            0x91.toByte(), 0x01,                 //   Output (Const) — padding
+            0x95.toByte(), 0x06,                 //   Report Count (6)
+            0x75, 0x08,                          //   Report Size (8)
+            0x15, 0x00,                          //   Logical Minimum (0)
+            0x25, 0x65,                          //   Logical Maximum (101)
+            0x05, 0x07,                          //   Usage Page (Keyboard/Keypad)
+            0x19, 0x00,                          //   Usage Minimum (0)
+            0x29, 0x65,                          //   Usage Maximum (101)
+            0x81.toByte(), 0x00,                 //   Input (Data, Array) — keys
+            0xC0.toByte(),                       // End Collection
+
+            // ---- mouse, report ID 2 ----
             0x05, 0x01,                          // Usage Page (Generic Desktop)
             0x09, 0x02,                          // Usage (Mouse)
             0xA1.toByte(), 0x01,                 // Collection (Application)
@@ -369,9 +422,9 @@ class HidMouse(private val context: Context) {
         }
         val sdp = BluetoothHidDeviceAppSdpSettings(
             "Gesture Mouse",
-            "Phone as an air trackpad",
+            "Phone as an air trackpad and keyboard",
             "GestureMouse",
-            BluetoothHidDevice.SUBCLASS1_MOUSE,
+            BluetoothHidDevice.SUBCLASS1_COMBO,
             DESCRIPTOR
         )
 
@@ -447,8 +500,11 @@ class HidMouse(private val context: Context) {
              */
             override fun onGetReport(device: BluetoothDevice?, type: Byte, id: Byte, bufferSize: Int) {
                 val d = device ?: return
-                val body = if (bootProtocol) byteArrayOf(buttons.toByte(), 0, 0)
-                else byteArrayOf(buttons.toByte(), 0, 0, 0)
+                val body = when {
+                    id.toInt() == KEYBOARD_REPORT_ID -> ByteArray(8)   // no keys down
+                    bootProtocol -> byteArrayOf(buttons.toByte(), 0, 0)
+                    else -> byteArrayOf(buttons.toByte(), 0, 0, 0)
+                }
                 Log.i(TAG, "onGetReport type=$type id=$id -> replying ${body.size} bytes")
                 proxy?.replyReport(d, type, id, body)
             }
@@ -892,6 +948,49 @@ class HidMouse(private val context: Context) {
     fun click(mask: Int = BUTTON_LEFT) {
         buttonDown(mask)
         main.postDelayed({ buttonUp(mask) }, 40)
+    }
+
+    // ------------------------------------------------------------------
+    // keyboard
+    // ------------------------------------------------------------------
+
+    /**
+     * Keystrokes go out on their own thread, in order: a word from voice typing
+     * is dozens of reports with a pause after each, which mustn't block the UI
+     * or interleave with the next word.
+     */
+    private val typist = Executors.newSingleThreadExecutor()
+
+    /** Type [text] on the computer. Characters with no US key are skipped. */
+    fun type(text: CharSequence) {
+        if (host == null || text.isEmpty()) return
+        val strokes = KeyMap.strokes(text)
+        // counts only — never what was typed
+        Log.i(TAG, "keyboard: ${strokes.size} stroke(s), ${maxOf(0, text.length - strokes.size)} char(s) with no key")
+        typist.execute { strokes.forEach { stroke(it.modifiers, it.usage) } }
+    }
+
+    /** Press and release one key, e.g. [KeyMap.BACKSPACE] [count] times. */
+    fun key(usage: Int, count: Int = 1, modifiers: Int = 0) {
+        if (host == null || count <= 0) return
+        Log.i(TAG, "keyboard: key 0x${usage.toString(16)} x$count")
+        typist.execute { repeat(count) { stroke(modifiers, usage) } }
+    }
+
+    /** Runs on [typist]. */
+    private fun stroke(modifiers: Int, usage: Int) {
+        val p = proxy ?: return
+        val d = host ?: return
+        try {
+            val ok = p.sendReport(d, KEYBOARD_REPORT_ID, byteArrayOf(modifiers.toByte(), 0, usage.toByte(), 0, 0, 0, 0, 0))
+            if (!ok) Log.w(TAG, "keyboard: sendReport refused")
+            Thread.sleep(KEY_GAP_MS)
+            // always release, even for a repeated letter: "ll" is two strokes
+            p.sendReport(d, KEYBOARD_REPORT_ID, ByteArray(8))
+            Thread.sleep(KEY_GAP_MS)
+        } catch (e: Exception) {
+            Log.w(TAG, "keyboard report failed", e)
+        }
     }
 
     fun releaseButtons() {

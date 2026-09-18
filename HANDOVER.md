@@ -64,9 +64,20 @@ on macOS.
   denied → dialog links to app settings.
 - Bump `versionCode` for every APK handed out.
 
-**Still untested:** reconnect-on-reopen against the now-remembered MARK-IV,
-drop-and-recover, macOS, other phone brands, and the test-plan regression pass
-(trackpad/Air).
+**Keyboard (1.4.0), working on MARK-IV:** the descriptor is now a combo —
+keyboard at report ID 1 (boot layout, so the same report serves boot
+protocol), mouse unchanged at ID 2, SDP subclass `COMBO`. The ⌨ button floats
+in the trackpad's bottom-right corner and opens the phone keyboard over an
+invisible `KeyboardInput`, which diffs a mirror of the typed text and sends
+backspaces + keystrokes (`KeyMap`, US layout). Log lines give stroke counts
+only, never the text. **Any descriptor change forces every computer to
+re-pair** — the first keyboard test failed for exactly that reason.
+
+**Also verified:** reconnect on app launch to the remembered host (~1 s), and
+recovery from a dropped link.
+
+**Still untested:** macOS, other phone brands and keyboard apps (Samsung,
+SwiftKey), and the Air-tab regression pass.
 
 ---
 
@@ -80,7 +91,7 @@ the whole reason this file exists.
 - **Branch:** `claude/gesture-mouse-apk-build-18aria`
 - **PR:** https://github.com/abinrobby0312-lang/gesture-mouse/pull/2 (draft)
 - **Repo:** `abinrobby0312-lang/gesture-mouse`
-- **Version:** `versionCode 4`, `versionName 1.3.0` (was 3 / 1.2.0 before the hardware session)
+- **Version:** `versionCode 5`, `versionName 1.4.0` (was 3 / 1.2.0 before the hardware session)
 
 ## What changed and why
 
