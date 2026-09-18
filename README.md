@@ -63,7 +63,13 @@ camera is only requested after you've been told what it's for.
    matching code on both screens.
 5. Status turns teal. The cursor now answers to the phone.
 
-After the first time it reconnects on its own whenever you open the app.
+After the first time it reconnects on its own whenever you open the app, and
+again if the link drops while it's running.
+
+Connecting is retried rather than attempted once: `connect()` is a request, and
+a host can accept it and then drop the link a second later. The app makes up to
+four attempts with a widening gap between them, shows which one it's on, and
+stops with a reason instead of sitting on *Ready* forever.
 
 ### Pair from the app, not from the computer
 
@@ -241,7 +247,10 @@ onConnectionStateChanged device=… state=2      <- 2 means connected
 | Symptom | Cause |
 |---|---|
 | No `GMouse` lines at all | The HID service never registered — reopen the app |
-| Reaches `state=1` then `state=0` | Host has a cached service list with no mouse in it. Unpair on both sides and pair again from the app |
+| Reaches `state=1` then `state=0` | Host has a cached service list with no mouse in it. The app now detects this after its last attempt and offers to unpair; you still have to remove the pairing on the computer too |
+| `connect attempt n/4 … returned false` | The stack refused the request outright — usually not registered yet, or Bluetooth was toggled mid-attempt |
+| `giving up … stale service list?` | The cached-service-list case above, confirmed. Re-pair from the app |
+| `HID service didn't start` | Registration never completed; the connect gave up waiting. Reopen the app |
 | Connected but the pointer won't move | Check for `onSetProtocol boot=true`; a protocol mismatch parks the cursor |
 | No scrolling on macOS | Expected in boot protocol — it has no wheel field |
 

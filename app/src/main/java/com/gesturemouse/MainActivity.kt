@@ -124,7 +124,8 @@ class MainActivity : AppCompatActivity() {
     private fun showState(state: HidMouse.State, msg: String) {
         val color = ContextCompat.getColor(this, when (state) {
             HidMouse.State.CONNECTED -> R.color.track
-            HidMouse.State.WAITING, HidMouse.State.REGISTERING -> R.color.fire
+            HidMouse.State.WAITING, HidMouse.State.REGISTERING,
+            HidMouse.State.CONNECTING -> R.color.fire
             else -> R.color.fault
         })
         (b.statusDot.background as? GradientDrawable)?.setColor(color)
@@ -133,6 +134,70 @@ class MainActivity : AppCompatActivity() {
             else -> msg
         }
         b.pairButton.text = if (state == HidMouse.State.CONNECTED) "Hosts" else "Pair"
+
+        if (state == HidMouse.State.STALE_BOND) offerRepair() else repairOffered = false
+    }
+
+    /** Guard so the recovery dialog doesn't stack up on repeated reports. */
+    private var repairOffered = false
+
+    /**
+     * A host that is bonded and still refuses the mouse has cached a service
+     * list from a time when this app wasn't advertising one. A host reads that
+     * list once, when it bonds, so nothing the phone does afterwards changes
+     * it — the pairing has to be made again from scratch.
+     *
+     * The app can only drop its own half. The host keeps its own record, and if
+     * it isn't cleared there too the stale list survives, so the instructions
+     * say so rather than implying one tap is the whole job.
+     */
+    private fun offerRepair() {
+        if (repairOffered || isFinishing) return
+        val m = mouse ?: return
+        val device = m.lastFailedHost ?: return
+        repairOffered = true
+
+        val name = try { device.name } catch (e: SecurityException) { null } ?: device.address
+        AlertDialog.Builder(this)
+            .setTitle("$name won't accept the mouse")
+            .setMessage(
+                "It's paired, but from before the mouse existed, so it never " +
+                        "learned this phone can be one.\n\n" +
+                        "Remove the pairing on both sides, then pair again from here."
+            )
+            .setPositiveButton("Unpair and retry") { _, _ ->
+                val dropped = m.forgetBond(device)
+                if (dropped) {
+                    AlertDialog.Builder(this)
+                        .setTitle("Unpaired")
+                        .setMessage(
+                            "Now remove this phone from $name's Bluetooth settings too, " +
+                                    "then tap Pair."
+                        )
+                        .setPositiveButton("Pair") { _, _ -> onPairPressed() }
+                        .setNegativeButton("Later", null)
+                        .show()
+                } else {
+                    AlertDialog.Builder(this)
+                        .setTitle("Unpair it manually")
+                        .setMessage(
+                            "This phone wouldn't let the app remove the pairing. Open " +
+                                    "Bluetooth settings, forget $name there and on $name " +
+                                    "itself, then come back and tap Pair."
+                        )
+                        .setPositiveButton("Bluetooth settings") { _, _ ->
+                            try {
+                                startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS))
+                            } catch (_: Exception) {
+                            }
+                        }
+                        .setNegativeButton("OK", null)
+                        .show()
+                }
+            }
+            .setNegativeButton("Not now", null)
+            .setOnDismissListener { repairOffered = false }
+            .show()
     }
 
     /**

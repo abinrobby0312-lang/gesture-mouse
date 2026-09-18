@@ -51,15 +51,26 @@ class DevicePicker(
                     val d = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                     val state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1)
                     Log.i(HidMouse.TAG, "bond state for ${d?.address} = $state")
-                    if (d != null && d.address == pendingBond?.address &&
-                        state == BluetoothDevice.BOND_BONDED
-                    ) {
-                        // bonded with the HID service live, so the host has a
-                        // mouse in its service list — now push the connection
-                        Log.i(HidMouse.TAG, "bonded, connecting HID to ${d.address}")
-                        mouse.connectTo(d)
-                        pendingBond = null
-                        dismiss()
+                    if (d == null || d.address != pendingBond?.address) return
+                    when (state) {
+                        BluetoothDevice.BOND_BONDED -> {
+                            // bonded with the HID service live, so the host has
+                            // a mouse in its service list — now push the
+                            // connection, once the stack has stopped moving
+                            Log.i(HidMouse.TAG, "bonded, connecting HID to ${d.address}")
+                            mouse.connectAfterBond(d)
+                            pendingBond = null
+                            dismiss()
+                        }
+
+                        BluetoothDevice.BOND_NONE -> {
+                            // BONDING -> NONE is a refused, cancelled or failed
+                            // pairing. Leaving the dialog sitting on "Pairing…"
+                            // made that look identical to one still in flight.
+                            Log.w(HidMouse.TAG, "pairing with ${d.address} failed")
+                            pendingBond = null
+                            dialog?.setTitle("Pairing failed — tap to try again")
+                        }
                     }
                 }
             }

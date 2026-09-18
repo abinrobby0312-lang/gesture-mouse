@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHidDevice
-import android.bluetooth.BluetoothHidDeviceAppQosSettings
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
@@ -25,6 +24,19 @@ import kotlin.math.sign
  *
  * Reports are relative (dx, dy), never absolute, which is also why this works
  * without ever knowing the host's screen size.
+ *
+ * ## Connecting
+ *
+ * Getting registered is not the same as getting connected, and the gap between
+ * the two is where this used to fail. `connect()` is a request, not a result:
+ * it can return false outright, or return true and still land back in
+ * DISCONNECTED a few seconds later. A single un-checked call therefore looks
+ * exactly like success while nothing happens.
+ *
+ * So every connection now goes through one place — [startAttempts] — which
+ * checks the return value, arms a timeout, retries with backoff, and stops with
+ * a diagnosis rather than in silence. See [onAttemptFailed] for what "gave up"
+ * reports and why.
  */
 @SuppressLint("MissingPermission")
 class HidMouse(private val context: Context) {
@@ -36,6 +48,37 @@ class HidMouse(private val context: Context) {
         const val BUTTON_LEFT = 1
         const val BUTTON_RIGHT = 2
         const val BUTTON_MIDDLE = 4
+
+        /** How many times to ask for one connection before giving up. */
+        private const val MAX_ATTEMPTS = 4
+
+        /** How many times to wait on the HID service before calling it dead. */
+        private const val MAX_DEFERRALS = 8
+
+        /**
+         * How long a single attempt gets before it counts as failed.
+         *
+         * A host that is going to accept usually does so in well under two
+         * seconds; one that is going to refuse often says nothing at all, which
+         * is why this needs a timeout rather than waiting on a callback.
+         */
+        private const val CONNECT_TIMEOUT_MS = 8_000L
+
+        /** Gap before each retry. The last value repeats if attempts outrun it. */
+        private val BACKOFF_MS = longArrayOf(1_000L, 2_000L, 4_000L)
+
+        /**
+         * Pause between "bond completed" and the first connect.
+         *
+         * BOND_BONDED fires when the pairing exchange finishes, not when the
+         * stack has finished writing out the service records. Connecting on
+         * that instant is the single most reliable way to get a connect that
+         * returns true and then quietly dies.
+         */
+        private const val POST_BOND_SETTLE_MS = 1_200L
+
+        private const val PREFS = "gesturemouse"
+        private const val KEY_LAST_HOST = "lastHost"
 
         /**
          * Boot-mouse report descriptor plus a wheel.
@@ -76,7 +119,7 @@ class HidMouse(private val context: Context) {
         )
     }
 
-    enum class State { UNSUPPORTED, OFF, REGISTERING, WAITING, CONNECTED }
+    enum class State { UNSUPPORTED, OFF, REGISTERING, WAITING, CONNECTING, STALE_BOND, CONNECTED }
 
     var onState: ((State, String) -> Unit)? = null
 
@@ -86,7 +129,9 @@ class HidMouse(private val context: Context) {
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
     private var proxy: BluetoothHidDevice? = null
-    private var host: BluetoothDevice? = null
+
+    /** Read from gesture threads in [send], written from the profile callback. */
+    @Volatile private var host: BluetoothDevice? = null
     private var buttons = 0
 
     /**
@@ -98,6 +143,10 @@ class HidMouse(private val context: Context) {
      * race to registerApp(). The loser logs "registerApp returned false" and
      * the registration flaps between true and false, dropping the HID service
      * at exactly the moment a host is trying to connect.
+     *
+     * Every path that leaves the in-flight state has to clear this, including
+     * the failure paths — a latched `true` makes [start] return early forever
+     * and the only cure is a force-stop.
      */
     @Volatile private var proxyPending = false
 
@@ -124,6 +173,41 @@ class HidMouse(private val context: Context) {
     @Volatile var registered = false
         private set
 
+    // ---- connection attempt state. main thread only. ----
+
+    /** The device we are currently trying to reach, or null if we aren't. */
+    private var pendingTarget: BluetoothDevice? = null
+
+    /**
+     * The bonded device we last ran out of attempts on.
+     *
+     * Kept so the UI can offer to drop the pairing and make it again, which is
+     * the only thing that clears a host's cached service list.
+     */
+    @Volatile var lastFailedHost: BluetoothDevice? = null
+        private set
+
+    /** Attempts spent on [pendingTarget] so far. */
+    private var attempt = 0
+
+    /**
+     * Times we've put an attempt off waiting for the HID service to come up.
+     *
+     * Bounded because deferring doesn't spend an attempt: if registration never
+     * completes, an unbounded wait is a retry loop that runs for as long as the
+     * app is open and never reports anything.
+     */
+    private var deferrals = 0
+
+    /**
+     * Set when the host explicitly unplugs the virtual cable.
+     *
+     * That is the host saying "I don't want this mouse", which is different
+     * from a link that dropped. Reconnecting over the top of it would fight the
+     * user, so auto-reconnect sits out until something asks explicitly.
+     */
+    @Volatile private var unplugged = false
+
     // sub-pixel remainder: a report can only carry whole units, so fractional
     // movement would otherwise be truncated away and slow drags would stall
     private var remX = 0f
@@ -131,29 +215,46 @@ class HidMouse(private val context: Context) {
 
     val isConnected: Boolean get() = host != null
 
+    private val prefs by lazy { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
+
     private fun report(state: State, msg: String) {
         Log.i(TAG, "state=$state msg=$msg")
         main.post { onState?.invoke(state, msg) }
     }
 
+    private fun nameOf(d: BluetoothDevice?): String =
+        try { d?.name } catch (_: SecurityException) { null } ?: d?.address ?: "host"
+
+    // ------------------------------------------------------------------
+    // registration
+    // ------------------------------------------------------------------
+
     /**
-     * Bring the HID service back up if it isn't live. Safe to call repeatedly —
-     * this is what every onResume goes through, so the app self-heals after the
-     * stack drops us instead of needing a force-stop.
+     * Bring the HID service back up if it isn't live, and get back to a host if
+     * we know one. Safe to call repeatedly — this is what every onResume goes
+     * through, so the app self-heals after the stack drops us instead of
+     * needing a force-stop.
      */
     fun ensureStarted() {
-        if (registered && host != null) return
-        if (registered) {
-            Log.i(TAG, "ensureStarted: registered, waiting for a host")
-            return
-        }
+        if (host != null) return
         val p = proxy
-        if (p != null) {
-            Log.i(TAG, "ensureStarted: have proxy but not registered — re-registering")
-            registerApp()
-        } else {
-            Log.i(TAG, "ensureStarted: no proxy — starting from scratch")
-            start()
+        when {
+            registered -> {
+                // Registered but with nobody on the other end. This used to
+                // stop here, which is why reopening the app never reconnected:
+                // the only connect() in the whole class lived in the
+                // registration callback, and that fires once per registration.
+                Log.i(TAG, "ensureStarted: registered with no host — trying to reconnect")
+                autoReconnect("resume")
+            }
+            p != null -> {
+                Log.i(TAG, "ensureStarted: have proxy but not registered — re-registering")
+                registerApp()
+            }
+            else -> {
+                Log.i(TAG, "ensureStarted: no proxy — starting from scratch")
+                start()
+            }
         }
     }
 
@@ -179,8 +280,10 @@ class HidMouse(private val context: Context) {
             a.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
                 override fun onServiceConnected(profile: Int, service: BluetoothProfile) {
                     Log.i(TAG, "onServiceConnected profile=$profile (HID_DEVICE=${BluetoothProfile.HID_DEVICE})")
-                    if (profile != BluetoothProfile.HID_DEVICE) return
+                    // clear before the profile check: returning early with this
+                    // still set latches start() shut for the rest of the run
                     proxyPending = false
+                    if (profile != BluetoothProfile.HID_DEVICE) return
                     if (proxy != null) {
                         // a duplicate proxy from an earlier race; registering
                         // against it would unregister the live one
@@ -198,6 +301,7 @@ class HidMouse(private val context: Context) {
                         proxy = null
                         host = null
                         registered = false
+                        main.post { cancelAttempts() }
                         report(State.OFF, "HID service disconnected")
                     }
                 }
@@ -229,30 +333,29 @@ class HidMouse(private val context: Context) {
             BluetoothHidDevice.SUBCLASS1_MOUSE,
             DESCRIPTOR
         )
-        // explicit QoS. passing null lets Windows negotiate its own defaults,
-        // but some stacks (macOS among them) treat an absent QoS record as a
-        // reason to abandon the L2CAP setup.
-        val qos = BluetoothHidDeviceAppQosSettings(
-            BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
-            800, 9, 0,
-            BluetoothHidDeviceAppQosSettings.MAX,
-            BluetoothHidDeviceAppQosSettings.MAX
-        )
 
         val ok = try {
-            proxy?.registerApp(sdp, null, qos, executor, object : BluetoothHidDevice.Callback() {
+            // Both QoS records are null on purpose: that means "no QoS
+            // preference", and the stack falls back to the L2CAP defaults the
+            // host proposes. An explicit record has to be one the host will
+            // actually agree to, and a mismatch is refused during channel
+            // setup — which surfaces as a connection that never completes
+            // rather than as an error anyone can see.
+            proxy?.registerApp(sdp, null, null, executor, object : BluetoothHidDevice.Callback() {
             override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
                 Log.i(TAG, "onAppStatusChanged registered=$registered plugged=${pluggedDevice?.address}")
                 this@HidMouse.registered = registered
                 if (registered) {
-                    // if a host is already bonded and waiting, reconnect to it
+                    report(State.WAITING, "Ready — pair \"Gesture Mouse\" from your computer")
                     val known = pluggedDevice ?: proxy?.getDevicesMatchingConnectionStates(
                         intArrayOf(BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_CONNECTING)
                     )?.firstOrNull()
-                    if (known != null) proxy?.connect(known)
-                    report(State.WAITING, "Ready — pair \"Gesture Mouse\" from your computer")
+                    main.post {
+                        if (known != null) startAttempts(known, "plugged") else autoReconnect("registered")
+                    }
                 } else {
                     host = null
+                    main.post { cancelAttempts() }
                     report(State.OFF, "HID app unregistered")
                 }
             }
@@ -264,12 +367,20 @@ class HidMouse(private val context: Context) {
                         host = device
                         remX = 0f; remY = 0f
                         bootProtocol = false   // until the host says otherwise
-                        report(State.CONNECTED, device?.name ?: "Connected")
+                        unplugged = false
+                        lastFailedHost = null
+                        if (device != null) remember(device)
+                        main.post { cancelAttempts() }
+                        report(State.CONNECTED, nameOf(device))
+                    }
+                    BluetoothProfile.STATE_CONNECTING -> {
+                        report(State.CONNECTING, "Connecting to ${nameOf(device)}…")
                     }
                     BluetoothProfile.STATE_DISCONNECTED -> {
-                        if (device == host) host = null
+                        val wasHost = device != null && device == host
+                        if (wasHost) host = null
                         bootProtocol = false
-                        report(State.WAITING, "Disconnected — waiting for a host")
+                        main.post { onDisconnected(device, wasHost) }
                     }
                 }
             }
@@ -302,6 +413,8 @@ class HidMouse(private val context: Context) {
                 Log.i(TAG, "onVirtualCableUnplug ${device?.address}")
                 if (device == host) host = null
                 bootProtocol = false
+                unplugged = true
+                main.post { cancelAttempts() }
                 report(State.WAITING, "Host disconnected the mouse")
             }
             })
@@ -316,6 +429,7 @@ class HidMouse(private val context: Context) {
     }
 
     fun stop() {
+        main.post { cancelAttempts() }
         try {
             releaseButtons()
             proxy?.unregisterApp()
@@ -325,15 +439,205 @@ class HidMouse(private val context: Context) {
         proxy = null
         host = null
         registered = false
+        // without this a later start() sees an in-flight request that will
+        // never arrive and returns early forever
+        proxyPending = false
     }
+
+    // ------------------------------------------------------------------
+    // connecting
+    // ------------------------------------------------------------------
 
     /** Devices already bonded to this phone, so the UI can offer a reconnect. */
     fun bondedHosts(): List<BluetoothDevice> =
-        adapter?.bondedDevices?.toList().orEmpty()
+        try { adapter?.bondedDevices?.toList().orEmpty() } catch (_: SecurityException) { emptyList() }
 
+    /**
+     * Connect to [device], retrying as needed. This is the only way in — a bare
+     * `connect()` is a request whose failure is invisible.
+     */
     fun connectTo(device: BluetoothDevice) {
-        proxy?.connect(device)
+        main.post { startAttempts(device, "user") }
     }
+
+    /**
+     * Connect once the stack has finished settling after a fresh bond.
+     *
+     * See [POST_BOND_SETTLE_MS] — connecting the instant BOND_BONDED arrives is
+     * how you get a connect that reports success and then dies quietly.
+     */
+    fun connectAfterBond(device: BluetoothDevice) {
+        Log.i(TAG, "connectAfterBond ${device.address} in ${POST_BOND_SETTLE_MS}ms")
+        report(State.CONNECTING, "Pairing done — connecting…")
+        main.postDelayed({ startAttempts(device, "post-bond") }, POST_BOND_SETTLE_MS)
+    }
+
+    private val timeoutRunnable = Runnable { onAttemptFailed("timed out") }
+    private val retryRunnable = Runnable { fireAttempt() }
+
+    private fun startAttempts(device: BluetoothDevice, why: String) {
+        cancelAttempts()
+        unplugged = false
+        pendingTarget = device
+        attempt = 0
+        deferrals = 0
+        Log.i(TAG, "startAttempts($why) target=${device.address}")
+        fireAttempt()
+    }
+
+    private fun fireAttempt() {
+        val d = pendingTarget ?: return
+        if (host != null) { cancelAttempts(); return }
+
+        val p = proxy
+        if (p == null || !registered) {
+            // nothing to connect *with* yet. don't burn an attempt on it —
+            // registration will call back round to autoReconnect().
+            if (deferrals >= MAX_DEFERRALS) {
+                Log.w(TAG, "fireAttempt: HID service never came up, giving up")
+                cancelAttempts()
+                report(State.OFF, "The HID service didn't start — reopen the app")
+                return
+            }
+            deferrals++
+            Log.w(TAG, "fireAttempt: not registered yet (proxy=${p != null}) — deferring $deferrals/$MAX_DEFERRALS")
+            report(State.CONNECTING, "Waiting for the HID service…")
+            main.postDelayed(retryRunnable, BACKOFF_MS[0])
+            return
+        }
+
+        attempt++
+        // discovery starves the link; an active scan is a common reason a
+        // connect that should work doesn't
+        val a = adapter
+        try { if (a != null && a.isDiscovering) a.cancelDiscovery() } catch (_: Exception) {}
+
+        val asked = try { p.connect(d) } catch (e: Exception) {
+            Log.e(TAG, "connect threw", e); false
+        }
+        Log.i(TAG, "connect attempt $attempt/$MAX_ATTEMPTS to ${d.address} returned $asked")
+        report(State.CONNECTING, "Connecting to ${nameOf(d)}… ($attempt/$MAX_ATTEMPTS)")
+
+        if (!asked) {
+            // refused outright — no state change is coming, so don't sit on the
+            // full timeout waiting for one
+            main.post { onAttemptFailed("connect() refused") }
+            return
+        }
+        main.postDelayed(timeoutRunnable, CONNECT_TIMEOUT_MS)
+    }
+
+    private fun onAttemptFailed(why: String) {
+        main.removeCallbacks(timeoutRunnable)
+        if (host != null) { cancelAttempts(); return }
+        val d = pendingTarget ?: return
+        Log.w(TAG, "attempt $attempt to ${d.address} failed: $why")
+
+        if (attempt < MAX_ATTEMPTS) {
+            val delay = BACKOFF_MS[minOf(attempt - 1, BACKOFF_MS.size - 1).coerceAtLeast(0)]
+            Log.i(TAG, "retrying in ${delay}ms")
+            main.postDelayed(retryRunnable, delay)
+            return
+        }
+
+        // Out of attempts. The *reason* matters more than the failure: a host
+        // we are bonded to that still won't take the mouse is the cached-SDP
+        // case — it caches a device's service list when it bonds, and if the
+        // HID service wasn't up at that moment it never learns about it. No
+        // amount of retrying fixes that; re-pairing does.
+        val bonded = try { d.bondState == BluetoothDevice.BOND_BONDED } catch (_: Exception) { false }
+        pendingTarget = null
+        lastFailedHost = if (bonded) d else null
+        if (bonded) {
+            Log.w(TAG, "giving up on ${d.address} — bonded but won't accept HID (stale service list?)")
+            report(
+                State.STALE_BOND,
+                "${nameOf(d)} is paired but won't accept the mouse — unpair and pair again"
+            )
+        } else {
+            report(State.WAITING, "Couldn't connect to ${nameOf(d)} — tap Pair to try again")
+        }
+    }
+
+    private fun cancelAttempts() {
+        main.removeCallbacks(timeoutRunnable)
+        main.removeCallbacks(retryRunnable)
+        pendingTarget = null
+        attempt = 0
+        deferrals = 0
+    }
+
+    /** Runs on the main thread, from the connection callback. */
+    private fun onDisconnected(device: BluetoothDevice?, wasHost: Boolean) {
+        val target = pendingTarget
+        if (target != null && device?.address == target.address) {
+            // the link we were mid-way through asking for just died. fail this
+            // attempt now instead of waiting out the timeout.
+            onAttemptFailed("host dropped the link")
+            return
+        }
+        if (wasHost && !unplugged) {
+            report(State.WAITING, "Disconnected — reconnecting…")
+            autoReconnect("dropped")
+            return
+        }
+        report(State.WAITING, "Disconnected — waiting for a host")
+    }
+
+    /**
+     * Get back to the host we last used, if it's still bonded.
+     *
+     * Deliberately only the remembered one. Guessing from the bonded list means
+     * spending the whole retry budget asking a pair of earbuds to be a computer.
+     */
+    private fun autoReconnect(why: String) {
+        if (host != null || pendingTarget != null) return
+        if (unplugged) {
+            Log.i(TAG, "autoReconnect($why): host unplugged us, staying put")
+            return
+        }
+        val last = prefs.getString(KEY_LAST_HOST, null)
+        if (last == null) {
+            Log.i(TAG, "autoReconnect($why): no remembered host")
+            return
+        }
+        val d = bondedHosts().firstOrNull { it.address == last }
+        if (d == null) {
+            Log.i(TAG, "autoReconnect($why): remembered host $last is no longer bonded")
+            prefs.edit().remove(KEY_LAST_HOST).apply()
+            return
+        }
+        Log.i(TAG, "autoReconnect($why) -> ${d.address}")
+        startAttempts(d, "auto:$why")
+    }
+
+    private fun remember(device: BluetoothDevice) {
+        try { prefs.edit().putString(KEY_LAST_HOST, device.address).apply() } catch (_: Exception) {}
+    }
+
+    /**
+     * Drop the pairing so it can be made again with the HID service live.
+     *
+     * `removeBond` has never been public API, so this is reflection and is
+     * allowed to fail; when it does the user has to clear the pairing in system
+     * Bluetooth settings themselves, which is what the UI falls back to telling
+     * them.
+     */
+    fun forgetBond(device: BluetoothDevice): Boolean = try {
+        val removed = device.javaClass.getMethod("removeBond").invoke(device) as? Boolean ?: false
+        Log.i(TAG, "removeBond(${device.address}) returned $removed")
+        if (removed && prefs.getString(KEY_LAST_HOST, null) == device.address) {
+            prefs.edit().remove(KEY_LAST_HOST).apply()
+        }
+        removed
+    } catch (e: Exception) {
+        Log.e(TAG, "removeBond is unavailable on this build", e)
+        false
+    }
+
+    // ------------------------------------------------------------------
+    // reports
+    // ------------------------------------------------------------------
 
     private fun send(dx: Int, dy: Int, wheel: Int): Boolean {
         val p = proxy ?: return false
