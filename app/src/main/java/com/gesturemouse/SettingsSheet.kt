@@ -178,6 +178,15 @@ class SettingsSheet : BottomSheetDialogFragment() {
             // setting it recreates the activity; this sheet comes back with it
             if (chosen != settings.theme) settings.theme = chosen
         }
+        b.accentGroup.addOnButtonCheckedListener { _, id, checked ->
+            if (!checked) return@addOnButtonCheckedListener
+            val chosen = when (id) {
+                R.id.accentMagenta -> Settings.Accent.MAGENTA
+                R.id.accentOrange -> Settings.Accent.ORANGE
+                else -> Settings.Accent.SKY
+            }
+            if (chosen != settings.accent) settings.accent = chosen
+        }
     }
 
     private fun bindConnection() {
@@ -219,6 +228,13 @@ class SettingsSheet : BottomSheetDialogFragment() {
                 Settings.Theme.DARK -> R.id.themeDark
             }
         )
+        b.accentGroup.check(
+            when (settings.accent) {
+                Settings.Accent.MAGENTA -> R.id.accentMagenta
+                Settings.Accent.ORANGE -> R.id.accentOrange
+                Settings.Accent.SKY -> R.id.accentSky
+            }
+        )
         renderTrackers()
     }
 
@@ -249,22 +265,23 @@ class SettingsSheet : BottomSheetDialogFragment() {
         apply: (Float) -> Unit,
         snapped: (Float) -> Float
     ) {
+        val ctx = requireContext()
         val (color, text) = when (r.verdict) {
-            SensitivityTracker.Verdict.LEARNING -> R.color.dim to
+            SensitivityTracker.Verdict.LEARNING -> ContextCompat.getColor(ctx, R.color.dim) to
                     "Watching how you use the $what. Move to things as you normally " +
                     "would — ${r.aims} of ${SensitivityTracker.MIN_AIMS} moves seen so far."
-            SensitivityTracker.Verdict.GOOD -> R.color.ok to
+            SensitivityTracker.Verdict.GOOD -> ContextCompat.getColor(ctx, R.color.ok) to
                     "Looks right. ${r.aims - r.overshoots - r.clutches} of your last ${r.aims} " +
                     "moves landed without overshooting or re-stroking."
-            SensitivityTracker.Verdict.TOO_FAST -> R.color.fire to
+            SensitivityTracker.Verdict.TOO_FAST -> ctx.themeColor(R.attr.stateWaiting) to
                     "A bit fast: you overshot and came back on ${r.overshoots} of your " +
                     "last ${r.aims} moves."
-            SensitivityTracker.Verdict.TOO_SLOW -> R.color.fire to
+            SensitivityTracker.Verdict.TOO_SLOW -> ctx.themeColor(R.attr.stateWaiting) to
                     "A bit slow: you had to stroke again to get there on ${r.clutches} " +
                     "of your last ${r.aims} moves."
         }
         (card.trackerDot.background.mutate() as? GradientDrawable)
-            ?.setColor(ContextCompat.getColor(requireContext(), color))
+            ?.setColor(color)
 
         val suggestion = if (r.factor != 1f) snapped(current * r.factor) else current
         val canApply = suggestion != current

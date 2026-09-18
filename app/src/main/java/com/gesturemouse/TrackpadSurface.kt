@@ -68,12 +68,12 @@ class TrackpadSurface @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
     }
     private val touchDot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ContextCompat.getColor(context, R.color.track)
+        color = context.themeColor(R.attr.brandAccent)
     }
     private var touches = mutableListOf<Pair<Float, Float>>()
 
-    private val borderDragging = ContextCompat.getColor(context, R.color.fire)
-    private val borderGlow = ContextCompat.getColor(context, R.color.track)
+    private val borderDragging = context.themeColor(R.attr.stateWaiting)
+    private val borderGlow = context.themeColor(R.attr.brandAccent)
     private val borderIdle = ContextCompat.getColor(context, R.color.line)
 
     override fun onDraw(canvas: Canvas) {

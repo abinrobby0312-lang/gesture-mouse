@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Accent choices, applied over the app theme before any view is inflated
+        (MainActivity.onCreate). Each sets the accent, the colour of text on
+        it, and the waiting colour. Values per light/dark live in colors.xml /
+        values-night/colors.xml.
+
+        parent="" on purpose: an overlay must only set its own items, so it
+        can't reset anything else the app theme defines.
+    -->
+    <style name="ThemeOverlay.GestureMouse.Accent.Magenta" parent="">
+        <item name="brandAccent">@color/accent_magenta</item>
+        <item name="colorPrimary">@color/accent_magenta</item>
+        <item name="colorOnPrimary">@color/on_accent_magenta</item>
+        <item name="tabIndicatorColor">@color/accent_magenta</item>
+        <item name="stateWaiting">@color/fire</item>
+    </style>
+
+    <style name="ThemeOverlay.GestureMouse.Accent.Orange" parent="">
+        <item name="brandAccent">@color/accent_orange</item>
+        <item name="colorPrimary">@color/accent_orange</item>
+        <item name="colorOnPrimary">@color/on_accent_orange</item>
+        <item name="tabIndicatorColor">@color/accent_orange</item>
+        <item name="stateWaiting">@color/waiting_amber</item>
+    </style>
+
+    <style name="ThemeOverlay.GestureMouse.Accent.Sky" parent="">
+        <item name="brandAccent">@color/accent_sky</item>
+        <item name="colorPrimary">@color/accent_sky</item>
+        <item name="colorOnPrimary">@color/on_accent_sky</item>
+        <item name="tabIndicatorColor">@color/accent_sky</item>
+        <item name="stateWaiting">@color/fire</item>
+    </style>
+</resources>

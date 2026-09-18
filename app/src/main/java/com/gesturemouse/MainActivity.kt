@@ -35,6 +35,7 @@ class MainActivity : AppCompatActivity() {
     private var stopListening: (() -> Unit)? = null
     private var appliedTrackpadSpeed = Float.NaN
     private var appliedAirSpeed = Float.NaN
+    private var appliedAccent: Settings.Accent? = null
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -42,8 +43,11 @@ class MainActivity : AppCompatActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // before super.onCreate, so the first frame is already in the right theme
+        // before super.onCreate, so the first frame is already in the right
+        // theme and accent — views read ?attr/brandAccent as they inflate
         settings.applyTheme()
+        appliedAccent = settings.accent
+        theme.applyStyle(appliedAccent!!.overlay, true)
         super.onCreate(savedInstanceState)
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
@@ -145,6 +149,12 @@ class MainActivity : AppCompatActivity() {
      * longer applies, so each starts over when its own speed moves.
      */
     private fun onSettingsChanged() {
+        // the accent is baked into views at inflation, so a new one means a
+        // redraw — the same as switching light/dark
+        if (appliedAccent != null && settings.accent != appliedAccent) {
+            recreate()
+            return
+        }
         mouse?.naturalScroll = settings.naturalScroll
         if (settings.trackpadSpeed != appliedTrackpadSpeed) {
             if (!appliedTrackpadSpeed.isNaN()) trackpadTracker.reset()
@@ -192,12 +202,12 @@ class MainActivity : AppCompatActivity() {
     private fun showState(state: HidMouse.State, msg: String) {
         lastState = state
         lastMsg = msg
-        val color = ContextCompat.getColor(this, when (state) {
-            HidMouse.State.CONNECTED -> R.color.ok
-            HidMouse.State.REGISTERING, HidMouse.State.CONNECTING -> R.color.fire
-            HidMouse.State.WAITING -> R.color.dim
-            else -> R.color.fault
-        })
+        val color = when (state) {
+            HidMouse.State.CONNECTED -> ContextCompat.getColor(this, R.color.ok)
+            HidMouse.State.REGISTERING, HidMouse.State.CONNECTING -> themeColor(R.attr.stateWaiting)
+            HidMouse.State.WAITING -> ContextCompat.getColor(this, R.color.dim)
+            else -> ContextCompat.getColor(this, R.color.fault)
+        }
         (b.statusDot.background as? GradientDrawable)?.setColor(color)
         b.statusText.text = when (state) {
             HidMouse.State.CONNECTED -> "Connected to $msg"

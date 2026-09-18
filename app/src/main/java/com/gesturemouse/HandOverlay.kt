@@ -33,21 +33,22 @@ class HandOverlay @JvmOverloads constructor(
     private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 5f
-        color = ContextCompat.getColor(context, R.color.track)
+        color = context.themeColor(R.attr.brandAccent)
     }
     private val halo = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 3f
-        color = ContextCompat.getColor(context, R.color.overlay_halo)
+        color = withAlpha(ContextCompat.getColor(context, R.color.cyan), 0x59)
     }
     private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 6f
     }
 
-    private val edgeOn = ContextCompat.getColor(context, R.color.overlay_edge_on)
+    // active states are the chosen accent, translucent; idle ones are fixed
+    private val edgeOn = withAlpha(context.themeColor(R.attr.brandAccent), 0x8C)
     private val edgeOff = ContextCompat.getColor(context, R.color.overlay_edge_off)
-    private val handOn = ContextCompat.getColor(context, R.color.overlay_hand_on)
+    private val handOn = withAlpha(context.themeColor(R.attr.brandAccent), 0xBF)
     private val handOff = ContextCompat.getColor(context, R.color.overlay_hand_off)
 
     fun setHands(hands: List<List<GestureEngine.Landmark>>, onPad: Boolean, sweeping: Boolean) {

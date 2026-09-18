@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The brand accent and the colours that depend on it. Set by one of the
+         ThemeOverlay.GestureMouse.Accent.* overlays (styles_accent.xml), so
+         the accent can be chosen in Settings; everything that used to say
+         @color/track reads ?attr/brandAccent instead. -->
+    <attr name="brandAccent" format="color" />
+    <!-- "Connecting / waiting". Normally the logo's orange; moves to amber when
+         orange is the accent, so a state never looks like decoration. -->
+    <attr name="stateWaiting" format="color" />
+</resources>

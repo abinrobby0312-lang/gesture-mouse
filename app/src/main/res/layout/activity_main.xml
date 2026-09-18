@@ -72,8 +72,8 @@
         app:tabGravity="fill"
         app:tabMode="fixed"
         app:tabTextColor="@color/dim"
-        app:tabSelectedTextColor="@color/track"
-        app:tabIndicatorColor="@color/track"
+        app:tabSelectedTextColor="?attr/brandAccent"
+        app:tabIndicatorColor="?attr/brandAccent"
         android:background="@color/panel" />
 
     <androidx.viewpager2.widget.ViewPager2

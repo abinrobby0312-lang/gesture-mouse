@@ -94,6 +94,26 @@ class Settings private constructor(context: Context) {
         }
 
     /**
+     * The brand accent. Magenta is the logo's; orange (the hand) and sky blue
+     * (the screen and arrow) are there because magenta proved loud on the
+     * navy ground. Default: sky blue, while the choice is being trialled.
+     */
+    enum class Accent(val overlay: Int) {
+        MAGENTA(R.style.ThemeOverlay_GestureMouse_Accent_Magenta),
+        ORANGE(R.style.ThemeOverlay_GestureMouse_Accent_Orange),
+        SKY(R.style.ThemeOverlay_GestureMouse_Accent_Sky)
+    }
+
+    var accent: Accent
+        get() = prefs.getString("accent", null)
+            ?.let { runCatching { Accent.valueOf(it) }.getOrNull() } ?: Accent.SKY
+        set(v) {
+            if (v == accent) return
+            prefs.edit().putString("accent", v.name).apply()
+            notifyChanged()
+        }
+
+    /**
      * Push [theme] to AppCompat. Changing it recreates the activity, which
      * briefly drops and restores the Bluetooth connection — the same as the
      * phone switching dark mode on its own.
@@ -105,13 +125,15 @@ class Settings private constructor(context: Context) {
     }
 
     /**
-     * Back to defaults — except the theme. Resetting sensitivity shouldn't
-     * also flip the screen from light to dark under someone.
+     * Back to defaults — except the look. Resetting sensitivity shouldn't
+     * also repaint the app under someone.
      */
     fun resetToDefaults() {
         val keepTheme = prefs.getString("theme", null)
+        val keepAccent = prefs.getString("accent", null)
         val edit = prefs.edit().clear()
         if (keepTheme != null) edit.putString("theme", keepTheme)
+        if (keepAccent != null) edit.putString("accent", keepAccent)
         edit.apply()
         notifyChanged()
     }

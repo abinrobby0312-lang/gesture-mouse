@@ -41,9 +41,9 @@
         android:layout_height="wrap_content"
         android:background="@color/panel"
         app:tabGravity="fill"
-        app:tabIndicatorColor="@color/track"
+        app:tabIndicatorColor="?attr/brandAccent"
         app:tabMode="scrollable"
-        app:tabSelectedTextColor="@color/track"
+        app:tabSelectedTextColor="?attr/brandAccent"
         app:tabTextColor="@color/dim" />
 
     <!-- fills the sheet's fixed height (see SettingsSheet.onStart), so the
@@ -234,6 +234,61 @@
                 <TextView
                     style="@style/SettingsNote"
                     android:text="System follows your phone's dark-mode setting. Switching redraws the app, so the computer reconnects for a moment." />
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:text="Accent colour" />
+
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/accentGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:selectionRequired="true"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/accentSky"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Sky blue"
+                        app:icon="@drawable/dot"
+                        app:iconGravity="textStart"
+                        app:iconSize="12dp"
+                        app:iconTint="@color/accent_sky"
+                        app:iconTintMode="src_in" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/accentOrange"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Orange"
+                        app:icon="@drawable/dot"
+                        app:iconGravity="textStart"
+                        app:iconSize="12dp"
+                        app:iconTint="@color/accent_orange"
+                        app:iconTintMode="src_in" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/accentMagenta"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Magenta"
+                        app:icon="@drawable/dot"
+                        app:iconGravity="textStart"
+                        app:iconSize="12dp"
+                        app:iconTint="@color/accent_magenta"
+                        app:iconTintMode="src_in" />
+                </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                <TextView
+                    style="@style/SettingsNote"
+                    android:text="Buttons, tabs, sliders and highlights. Connected stays green and errors stay red whichever you pick." />
             </LinearLayout>
 
             <!-- ================= Connection ================= -->

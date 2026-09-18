@@ -2,29 +2,35 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <style name="Theme.GestureMouse" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/track</item>
-        <item name="colorOnPrimary">@color/on_accent</item>
+        <!-- accent: overridden by the chosen ThemeOverlay.GestureMouse.Accent.* -->
+        <item name="brandAccent">@color/accent_magenta</item>
+        <item name="stateWaiting">@color/fire</item>
+        <item name="colorPrimary">@color/accent_magenta</item>
+        <item name="colorOnPrimary">@color/on_accent_magenta</item>
         <item name="colorSecondary">@color/cyan</item>
         <item name="colorTertiary">@color/ok</item>
         <item name="android:colorBackground">@color/ink</item>
         <item name="android:statusBarColor">@color/ink</item>
         <item name="android:navigationBarColor">@color/ink</item>
         <item name="android:textColor">@color/paper</item>
-        <item name="tabIndicatorColor">@color/track</item>
+        <item name="tabIndicatorColor">@color/accent_magenta</item>
         <!-- dark bar icons on the light theme, light ones on the dark -->
         <item name="android:windowLightStatusBar">@bool/light_bars</item>
         <item name="android:windowLightNavigationBar">@bool/light_bars</item>
     </style>
 
     <!--
-        Fullscreen variant for the tutorial dialog.
+        Fullscreen window for the tutorial dialog.
 
-        It must inherit from the app theme, not a plain android.R.style.* one:
-        MaterialButton and TabLayout resolve Material attributes at inflation
-        and throw outright under a non-Material theme, which would crash the
-        walkthrough on first launch — the very first thing a new user sees.
+        An overlay (parent=""), not a full theme. The dialog's context is built
+        from the activity's theme — Material attributes, the chosen accent and
+        all — and this only adds the window flags on top. A full theme here
+        would reset the accent to the default; a plain android.R.style.* one
+        would drop the Material attributes, and MaterialButton and TabLayout
+        throw at inflation without them — crashing the walkthrough on first
+        launch, the very first thing a new user sees.
     -->
-    <style name="Theme.GestureMouse.Fullscreen" parent="Theme.GestureMouse">
+    <style name="Theme.GestureMouse.Fullscreen" parent="">
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowIsFloating">false</item>
