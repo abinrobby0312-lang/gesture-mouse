@@ -19,7 +19,7 @@ no internet permission at all.
 |---|---|
 | Android | **9.0 (API 28)** or newer — when `BluetoothHidDevice` landed |
 | CPU | ARM (`arm64-v8a` / `armeabi-v7a`); no x86 build |
-| Permissions | Bluetooth (connect/scan/advertise) and Camera, both asked for on first run |
+| Permissions | Bluetooth ("Nearby devices") and Camera, both asked for on first run |
 | Host | Anything that accepts a Bluetooth mouse — nothing to install on it |
 
 ## Install
@@ -49,7 +49,7 @@ and goes away when the app is uninstalled. Nothing is ever uploaded.
 
 A five-step walkthrough opens the first time you launch the app, covering
 pairing, both sets of gestures, and the sleep behaviour. It's shown once and
-then remembered — reopen it any time with the **?** button in the top right.
+then remembered — reopen it any time from **⚙ Settings → Help & contact**.
 
 Permission prompts deliberately wait until the walkthrough is finished, so the
 camera is only requested after you've been told what it's for.
@@ -63,7 +63,7 @@ Pair it the way you'd pair any Bluetooth mouse — from the computer.
 3. Pick the phone (its Bluetooth name, e.g. *"Abin's Pixel"*) and confirm the
    code on both screens.
 4. The computer connects the mouse on its own and the status strip turns
-   green: *Connected to …*.
+   red (the accent colour means live here): *Connected to …*.
 
 After that, just open the app: it reconnects to that computer by itself, and
 again if the link drops while it's running.
@@ -116,6 +116,40 @@ difference (backspaces for what was removed, keys for what was added).
 - **Upgrading from 1.3 or earlier:** the phone now describes itself as a mouse
   *and* keyboard. Computers cache that description at pairing, so remove the
   pairing on both sides and pair once more, or the keys are ignored.
+
+## Settings
+
+**⚙** in the top-right corner opens Settings as a sheet over the running app,
+so the mouse stays connected and every change applies immediately. Settings
+are kept between launches.
+
+| Tab | What's there |
+|---|---|
+| **Sensitivity** | Pointer speed for the trackpad and for air gestures, each with a **sensitivity tracker**; reset to defaults |
+| **Scrolling** | Scroll speed (both tabs), natural scrolling, keyboard notes |
+| **Appearance** | Theme: System, Light or Dark |
+| **Connection** | Status, how to connect, make the phone visible, phone Bluetooth settings, forget the remembered computer |
+| **Help & contact** | The walkthrough, **Email us**, app and phone version |
+
+**The sensitivity tracker** watches real use rather than asking. Two patterns
+count, and only on long, purposeful moves:
+
+- **Overshoot** — sailing past the target and coming back without lifting:
+  too fast.
+- **Clutching** — lifting and immediately stroking again the same way to get
+  there: too slow.
+
+After ten such moves it gives a verdict over the last thirty and offers a
+one-tap change of 15%; it starts fresh whenever that speed changes. Trackpad
+and air gestures are tracked separately.
+
+**Email us** opens the phone's own email app, addressed, with the app version,
+phone model and Android version filled in; nothing is sent until the person
+sends it. The address is never shown in the app itself — only as the
+recipient of that email. With no email app installed, it's copied to the
+clipboard instead.
+
+**Switching theme** redraws the app, so the computer reconnects for a moment.
 
 ### The computer's name, not the app's
 
@@ -247,6 +281,9 @@ app/src/main/java/com/gesturemouse/
   KeyboardInput.kt     phone keyboard -> keystrokes, by diffing a mirror
   MainActivity.kt      tabs, permissions, status strip + connect help
   TrackpadFragment.kt  touch tab + keyboard button
+  Settings.kt          persisted preferences, snapped to slider steps
+  SettingsSheet.kt     the tabbed settings sheet, tracker readouts, contact
+  SensitivityTracker.kt overshoot / clutch detection (pure logic, unit-tested)
   TrackpadSurface.kt   the touch surface itself
   AirFragment.kt       camera + MediaPipe, feeds GestureEngine
   HandOverlay.kt       skeleton and gear indicator

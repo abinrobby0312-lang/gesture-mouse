@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/carbon_fiber"
+    android:background="@drawable/app_background"
     android:fitsSystemWindows="true">
 
     <!-- connection strip: this is the only thing standing between the app and
@@ -50,19 +50,19 @@
                 android:maxLines="2" />
         </LinearLayout>
 
-        <!-- reopens the first-run walkthrough; none of the gestures are
-             discoverable by poking at the screen, so it needs a way back -->
+        <!-- settings: sensitivity, scrolling, theme, connection, and help —
+             the walkthrough that used to have this corner lives in there now -->
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/helpButton"
+            android:id="@+id/settingsButton"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
             android:minWidth="0dp"
             android:paddingHorizontal="12dp"
-            android:text="?"
-            android:contentDescription="Show the walkthrough"
-            android:textSize="11sp" />
+            android:text="⚙"
+            android:contentDescription="Settings"
+            android:textSize="16sp" />
     </LinearLayout>
 
     <com.google.android.material.tabs.TabLayout

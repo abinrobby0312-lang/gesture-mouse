@@ -17,8 +17,8 @@ import com.gesturemouse.databinding.ItemTutorialPageBinding
  * The first-run walkthrough.
  *
  * Shown once automatically, then never again unless asked for — the flag lives
- * in [PREFS] so it survives reinstall-free app restarts, and the help button in
- * [MainActivity] reopens it on demand. Nothing here is interactive beyond
+ * in [PREFS] so it survives reinstall-free app restarts, and Settings → Help &
+ * contact ([SettingsSheet]) reopens it on demand. Nothing here is interactive beyond
  * paging; it exists because none of the gestures are discoverable by poking at
  * the screen, and a Bluetooth mouse that needs pairing before it does anything
  * is a bad first impression without a word of explanation.
@@ -76,7 +76,7 @@ class TutorialDialog : DialogFragment() {
                 "seconds without real use, the Air tab stops reacting entirely and " +
                 "shows \"sleeping\".\n\nTo wake it, hold one open palm steady for 3 " +
                 "seconds — there's a countdown on screen.\n\nYou can reopen this " +
-                "guide any time with the ? button."
+                "guide any time from ⚙ Settings → Help & contact."
         )
     )
 

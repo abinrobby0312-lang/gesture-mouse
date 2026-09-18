@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings, as a bottom sheet over the live app: the mouse stays connected
+     and every change applies the moment it's made. Five tabs; each is a page
+     below that SettingsSheet shows one at a time. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/panel">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Settings"
+            android:textColor="@color/paper"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/close"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Done" />
+    </LinearLayout>
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/panel"
+        app:tabGravity="fill"
+        app:tabIndicatorColor="@color/track"
+        app:tabMode="scrollable"
+        app:tabSelectedTextColor="@color/track"
+        app:tabTextColor="@color/dim" />
+
+    <!-- fills the sheet's fixed height (see SettingsSheet.onStart), so the
+         sheet doesn't grow and shrink as tabs change -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="28dp">
+
+            <!-- ================= Sensitivity ================= -->
+            <LinearLayout
+                android:id="@+id/pageSensitivity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:text="Trackpad" />
+
+                <LinearLayout style="@style/SettingsRow">
+                    <TextView
+                        style="@style/SettingsLabel"
+                        android:text="Pointer speed" />
+                    <TextView
+                        android:id="@+id/trackpadSpeedValue"
+                        style="@style/SettingsValue" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    app:tickVisible="false"
+                    android:id="@+id/trackpadSpeed"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="Trackpad pointer speed"
+                    android:stepSize="0.1"
+                    android:valueFrom="0.4"
+                    android:valueTo="3.0" />
+
+                <include
+                    android:id="@+id/trackpadTracker"
+                    layout="@layout/item_tracker" />
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:text="Air gestures" />
+
+                <LinearLayout style="@style/SettingsRow">
+                    <TextView
+                        style="@style/SettingsLabel"
+                        android:text="Pointer speed" />
+                    <TextView
+                        android:id="@+id/airSpeedValue"
+                        style="@style/SettingsValue" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    app:tickVisible="false"
+                    android:id="@+id/airSpeed"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="Air gesture pointer speed"
+                    android:stepSize="100"
+                    android:valueFrom="400"
+                    android:valueTo="4000" />
+
+                <include
+                    android:id="@+id/airTracker"
+                    layout="@layout/item_tracker" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/resetDefaults"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="Reset all settings to defaults" />
+            </LinearLayout>
+
+            <!-- ================= Scrolling ================= -->
+            <LinearLayout
+                android:id="@+id/pageScrolling"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:text="Scrolling" />
+
+                <LinearLayout style="@style/SettingsRow">
+                    <TextView
+                        style="@style/SettingsLabel"
+                        android:text="Scroll speed" />
+                    <TextView
+                        android:id="@+id/scrollSpeedValue"
+                        style="@style/SettingsValue" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    app:tickVisible="false"
+                    android:id="@+id/scrollSpeed"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="Scroll speed"
+                    android:stepSize="0.1"
+                    android:valueFrom="0.4"
+                    android:valueTo="2.5" />
+
+                <TextView
+                    style="@style/SettingsNote"
+                    android:text="Applies to two-finger scrolling on the trackpad and to scrolling in the Air tab." />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/naturalScroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Natural scrolling"
+                    android:textColor="@color/paper" />
+
+                <TextView
+                    style="@style/SettingsNote"
+                    android:text="Content follows your fingers, like scrolling on a phone. Off: it moves like a mouse wheel." />
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:text="Keyboard" />
+
+                <TextView
+                    style="@style/SettingsNote"
+                    android:text="Tap ⌨ in the trackpad's corner to type on the computer with this phone's keyboard. Keys are sent in the US layout: on a computer set to another layout, some symbols may come out as different ones. Characters with no US key (é, emoji) are skipped." />
+            </LinearLayout>
+
+            <!-- ================= Appearance ================= -->
+            <LinearLayout
+                android:id="@+id/pageAppearance"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:text="Theme" />
+
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/themeGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:selectionRequired="true"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/themeSystem"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="System" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/themeLight"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Light" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/themeDark"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Dark" />
+                </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                <TextView
+                    style="@style/SettingsNote"
+                    android:text="System follows your phone's dark-mode setting. Switching redraws the app, so the computer reconnects for a moment." />
+            </LinearLayout>
+
+            <!-- ================= Connection ================= -->
+            <LinearLayout
+                android:id="@+id/pageConnection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:text="Status" />
+
+                <TextView
+                    android:id="@+id/connectionStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/paper"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/rememberedHost"
+                    style="@style/SettingsNote" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/howToConnect"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="How to connect a computer" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/makeVisible"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Make this phone visible" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/bluetoothSettings"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Phone Bluetooth settings" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/forgetHost"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Forget remembered computer" />
+
+                <TextView
+                    style="@style/SettingsNote"
+                    android:text="For moving the mouse to another computer: the app stops reconnecting to this one on launch, and whichever computer connects next is remembered instead. The pairing itself stays." />
+            </LinearLayout>
+
+            <!-- ================= Help & contact ================= -->
+            <LinearLayout
+                android:id="@+id/pageHelp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:text="How to use" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/showWalkthrough"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Show the walkthrough" />
+
+                <TextView
+                    style="@style/SettingsSection"
+                    android:text="Contact us" />
+
+                <TextView
+                    style="@style/SettingsNote"
+                    android:text="Questions, problems or ideas? Email us — your phone and app details are filled in for you, which helps us sort out device-specific issues." />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/contactEmail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Email us" />
+
+                <TextView
+                    android:id="@+id/versionInfo"
+                    style="@style/SettingsNote"
+                    android:layout_marginTop="24dp" />
+            </LinearLayout>
+        </FrameLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

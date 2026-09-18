@@ -22,12 +22,28 @@ class MainActivity : AppCompatActivity() {
     var mouse: HidMouse? = null
         private set
 
+    private val settings by lazy { Settings.get(this) }
+
+    /**
+     * One tracker per input method: the trackpad and the Air tab have separate
+     * speeds, and a verdict about one says nothing about the other. They live
+     * here rather than in the tabs so the settings sheet can read them.
+     */
+    val trackpadTracker = SensitivityTracker()
+    val airTracker = SensitivityTracker()
+
+    private var stopListening: (() -> Unit)? = null
+    private var appliedTrackpadSpeed = Float.NaN
+    private var appliedAirSpeed = Float.NaN
+
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             startHid()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // before super.onCreate, so the first frame is already in the right theme
+        settings.applyTheme()
         super.onCreate(savedInstanceState)
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
@@ -50,7 +66,10 @@ class MainActivity : AppCompatActivity() {
         }.attach()
 
         b.statusStrip.setOnClickListener { showConnectHelp() }
-        b.helpButton.setOnClickListener { TutorialDialog.show(supportFragmentManager) }
+        b.settingsButton.setOnClickListener { SettingsSheet.show(this) }
+
+        stopListening = settings.listen { onSettingsChanged() }
+        onSettingsChanged()
 
         android.util.Log.i(HidMouse.TAG, "MainActivity.onCreate")
 
@@ -116,7 +135,50 @@ class MainActivity : AppCompatActivity() {
         }
         mouse = HidMouse(this).apply {
             onState = { state, msg -> showState(state, msg) }
+            naturalScroll = settings.naturalScroll
             start()
+        }
+    }
+
+    /**
+     * A speed change makes the trackers' history describe a setting that no
+     * longer applies, so each starts over when its own speed moves.
+     */
+    private fun onSettingsChanged() {
+        mouse?.naturalScroll = settings.naturalScroll
+        if (settings.trackpadSpeed != appliedTrackpadSpeed) {
+            if (!appliedTrackpadSpeed.isNaN()) trackpadTracker.reset()
+            appliedTrackpadSpeed = settings.trackpadSpeed
+        }
+        if (settings.airSpeed != appliedAirSpeed) {
+            if (!appliedAirSpeed.isNaN()) airTracker.reset()
+            appliedAirSpeed = settings.airSpeed
+        }
+    }
+
+    /** One line for the settings sheet and support emails. */
+    fun statusSummary(): String = when (lastState) {
+        HidMouse.State.CONNECTED -> "Connected to $lastMsg"
+        HidMouse.State.REGISTERING, HidMouse.State.CONNECTING -> lastMsg.ifEmpty { "Starting…" }
+        HidMouse.State.WAITING, HidMouse.State.STALE_BOND -> "Not connected"
+        else -> lastMsg
+    }
+
+    fun makePhoneVisible() {
+        try {
+            startActivity(
+                Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
+                    .putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
+            )
+        } catch (_: Exception) {
+            openBluetoothSettings()
+        }
+    }
+
+    fun openBluetoothSettings() {
+        try {
+            startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS))
+        } catch (_: Exception) {
         }
     }
 
@@ -157,7 +219,7 @@ class MainActivity : AppCompatActivity() {
      * the moment the computer reads its service list — a list it reads once
      * and caches for good.
      */
-    private fun showConnectHelp() {
+    fun showConnectHelp() {
         if (isFinishing) return
         if (mouse == null) {
             if (bluetoothPermissionDenied()) showPermissionHelp() else requestNeededPermissions()
@@ -200,21 +262,8 @@ class MainActivity : AppCompatActivity() {
                         "and it reconnects.\n\n" +
                         "Computer can't see the phone? Tap Make visible."
             )
-            .setPositiveButton("Make visible") { _, _ ->
-                try {
-                    startActivity(
-                        Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
-                            .putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
-                    )
-                } catch (_: Exception) {
-                }
-            }
-            .setNeutralButton("Phone Bluetooth") { _, _ ->
-                try {
-                    startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS))
-                } catch (_: Exception) {
-                }
-            }
+            .setPositiveButton("Make visible") { _, _ -> makePhoneVisible() }
+            .setNeutralButton("Phone Bluetooth") { _, _ -> openBluetoothSettings() }
             .setNegativeButton("Close", null)
             .show()
     }
@@ -291,6 +340,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        stopListening?.invoke()
+        stopListening = null
         super.onDestroy()
         mouse?.stop()
         mouse = null

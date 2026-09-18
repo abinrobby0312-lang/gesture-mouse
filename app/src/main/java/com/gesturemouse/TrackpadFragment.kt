@@ -23,8 +23,19 @@ class TrackpadFragment : Fragment() {
         return b.root
     }
 
+    private val settings by lazy { Settings.get(requireContext()) }
+    private var stopListening: (() -> Unit)? = null
+
+    private fun applySettings() {
+        b.surface.sensitivity = settings.trackpadSpeed
+        b.surface.scrollGain = settings.scrollSpeed
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         b.surface.mouse = mouse
+        b.surface.tracker = (activity as? MainActivity)?.trackpadTracker
+        stopListening = settings.listen { if (_b != null) applySettings() }
+        applySettings()
 
         // hold-to-press rather than click, so these can be used for dragging
         holdButton(b.btnLeft, HidMouse.BUTTON_LEFT)
@@ -75,6 +86,8 @@ class TrackpadFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        stopListening?.invoke()
+        stopListening = null
         super.onDestroyView()
         _b = null
     }

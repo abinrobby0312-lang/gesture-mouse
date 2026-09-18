@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Light theme background: plain. The carbon weave (drawable-night) is a dark
+    bitmap; lightening it reads as grime rather than texture.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/ink" />
+</shape>

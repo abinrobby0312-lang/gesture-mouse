@@ -873,6 +873,23 @@ class HidMouse(private val context: Context) {
         }
     }
 
+    /** Name of the computer the app reconnects to on launch, or null. */
+    val rememberedHostName: String?
+        get() {
+            val last = prefs.getString(KEY_LAST_HOST, null) ?: return null
+            return bondedHosts().firstOrNull { it.address == last }?.let { nameOf(it) } ?: last
+        }
+
+    /**
+     * Stop reconnecting to the remembered computer on launch — for moving the
+     * mouse to a different one. The pairing itself stays; the next computer
+     * that connects becomes the remembered one.
+     */
+    fun forgetRememberedHost() {
+        Log.i(TAG, "forgetting remembered host")
+        prefs.edit().remove(KEY_LAST_HOST).apply()
+    }
+
     private fun remember(device: BluetoothDevice) {
         try { prefs.edit().putString(KEY_LAST_HOST, device.address).apply() } catch (_: Exception) {}
     }
@@ -923,9 +940,12 @@ class HidMouse(private val context: Context) {
         }
     }
 
+    /** Reverse the wheel so content follows the fingers; see [Settings.naturalScroll]. */
+    @Volatile var naturalScroll = false
+
     fun scroll(amount: Int) {
         if (host == null || amount == 0) return
-        var left = amount
+        var left = if (naturalScroll) -amount else amount
         while (left != 0) {
             val step = if (abs(left) > 127) 127 * left.sign else left
             if (!send(0, 0, step)) return

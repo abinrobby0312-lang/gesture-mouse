@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Light theme. Same roles as the dark palette in values-night — `ink` is
+        the base, `paper` the text — with the reds and amber deepened so they
+        keep their contrast on a light ground (the dark theme's neon red is too
+        pale to read as text on white).
+    -->
+    <color name="ink">#FFF3F3F6</color>
+    <color name="panel">#FFFFFFFF</color>
+    <color name="line">#FFD5D5DD</color>
+    <color name="paper">#FF16161B</color>
+    <color name="dim">#FF5E5E6B</color>
+    <color name="track">#FFD7102D</color>     <!-- red: active, connected -->
+    <color name="fire">#FFB86E00</color>      <!-- amber: pending, waiting -->
+    <color name="fault">#FF7A1428</color>     <!-- deep crimson: error, off -->
+
+    <color name="overlay_edge_on">#99D7102D</color>
+    <color name="overlay_edge_off">#66D5D5DD</color>
+    <color name="overlay_hand_on">#CCD7102D</color>
+    <color name="overlay_hand_off">#995E5E6B</color>
+    <color name="overlay_halo">#59D7102D</color>
+
+    <!-- text on the red accent; white in both themes -->
+    <color name="on_accent">#FFFFFFFF</color>
+
+    <bool name="light_bars">true</bool>
+</resources>

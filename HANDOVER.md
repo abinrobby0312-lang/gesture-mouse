@@ -41,7 +41,7 @@ disagree with this one, this one wins.
 - `forgetBond` (reflection `removeBond`) is removed; the help dialog tells the
   user to remove stale pairings on both sides instead.
 
-**UI (`MainActivity.kt`):** the status strip only reports (green *Connected
+**UI (`MainActivity.kt`):** the status strip only reports (red *Connected
 to X* / amber *Connecting…* / grey *Not connected — tap to connect*). Tapping it
 shows the pairing steps, **Make visible**, and a link to phone Bluetooth
 settings; for a stale pairing it names the computer and says to re-pair.
@@ -73,6 +73,21 @@ backspaces + keystrokes (`KeyMap`, US layout). Log lines give stroke counts
 only, never the text. **Any descriptor change forces every computer to
 re-pair** — the first keyboard test failed for exactly that reason.
 
+**Settings (1.5.0):** ⚙ replaces the old **?** button (the walkthrough moved to
+Settings → Help & contact). `SettingsSheet` is a fixed-height bottom sheet —
+fixed because pages of different lengths made it resize under the next tap —
+with five tabs: Sensitivity, Scrolling, Appearance, Connection, Help & contact.
+Values live in `Settings` (one per process, snapped to slider steps because a
+Material `Slider` throws on off-grid values). `SensitivityTracker` (unit-
+tested, thread-safe — the Air tab feeds it from the camera thread) flags
+overshoot vs. clutching per input method; `MainActivity` owns both trackers
+and resets one when its speed changes. Themes: `values/colors.xml` is the new
+light palette, `values-night/colors.xml` the original dark one, applied via
+`AppCompatDelegate` before `super.onCreate`; default stays Dark. Checked on
+the phone: gear placement, sheet over a live connection, Sensitivity and
+Scrolling tabs. **Not yet eyeballed:** the Appearance, Connection and Help tabs,
+light theme, and the email hand-off.
+
 **Also verified:** reconnect on app launch to the remembered host (~1 s), and
 recovery from a dropped link.
 
@@ -91,7 +106,7 @@ the whole reason this file exists.
 - **Branch:** `claude/gesture-mouse-apk-build-18aria`
 - **PR:** https://github.com/abinrobby0312-lang/gesture-mouse/pull/2 (draft)
 - **Repo:** `abinrobby0312-lang/gesture-mouse`
-- **Version:** `versionCode 5`, `versionName 1.4.0` (was 3 / 1.2.0 before the hardware session)
+- **Version:** `versionCode 6`, `versionName 1.5.0` (was 3 / 1.2.0 before the hardware session)
 
 ## What changed and why
 

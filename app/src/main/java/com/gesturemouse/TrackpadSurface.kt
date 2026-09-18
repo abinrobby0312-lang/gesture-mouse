@@ -27,8 +27,14 @@ class TrackpadSurface @JvmOverloads constructor(
     /** Pixels of cursor travel per pixel of finger travel. */
     var sensitivity = 1.2f
 
-    /** Scroll notches per pixel of two-finger travel. */
+    /** Two-finger travel per scroll notch at scroll speed 1. */
     private val scrollDivisor = 26f
+
+    /** Scroll speed multiplier from [Settings.scrollSpeed]. */
+    var scrollGain = 1f
+
+    /** Fed with one-finger pointer movement; see [SensitivityTracker]. */
+    var tracker: SensitivityTracker? = null
 
     private val tapSlop = 18f          // px of movement still considered a tap
     private val tapTimeout = 260L      // ms — longer than this is a drag, not a tap
@@ -120,6 +126,7 @@ class TrackpadSurface @JvmOverloads constructor(
                 pointerCount = 1
                 scrolling = false
                 scrollAccum = 0f
+                tracker?.begin(now)
 
                 // second tap of a tap-and-hold: press and keep holding
                 if (now - lastTapUpAt < dragHoldTimeout && !dragging) {
@@ -147,10 +154,11 @@ class TrackpadSurface @JvmOverloads constructor(
                     val midY = (e.getY(0) + e.getY(1)) / 2f
                     scrollAccum += (lastScrollY - midY)
                     lastScrollY = midY
-                    val notches = (scrollAccum / scrollDivisor).toInt()
+                    val divisor = scrollDivisor / scrollGain
+                    val notches = (scrollAccum / divisor).toInt()
                     if (notches != 0) {
                         m?.scroll(notches)
-                        scrollAccum -= notches * scrollDivisor
+                        scrollAccum -= notches * divisor
                         moved = true
                     }
                 } else {
@@ -158,7 +166,12 @@ class TrackpadSurface @JvmOverloads constructor(
                     val dy = e.y - lastY
                     lastX = e.x; lastY = e.y
                     if (hypot(e.x - downX, e.y - downY) > tapSlop) moved = true
-                    if (!scrolling) m?.move(dx * sensitivity, dy * sensitivity)
+                    if (!scrolling) {
+                        m?.move(dx * sensitivity, dy * sensitivity)
+                        // only while actually steering: a drag held with the
+                        // button down is aiming too, but scrolling isn't
+                        tracker?.move(dx * sensitivity, dy * sensitivity, now)
+                    }
                 }
                 syncTouches(e)
             }
@@ -169,6 +182,7 @@ class TrackpadSurface @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_UP -> {
+                tracker?.lift()
                 val quick = now - downAt < tapTimeout && !moved
                 if (dragging) {
                     dragging = false

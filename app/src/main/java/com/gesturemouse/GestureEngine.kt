@@ -116,6 +116,9 @@ class GestureEngine(private val realOut: Output) {
     /** Master sensitivity; both gears multiply this. */
     var speed = 1800f
 
+    /** Scroll notches per unit of hand travel, relative to [SCROLL_DIVISOR]. */
+    var scrollGain = 1f
+
     /**
      * Optional sink for telemetry. Records what fired *and what nearly fired* —
      * a gesture that misses a threshold by a hair leaves no trace otherwise, so
@@ -351,10 +354,11 @@ class GestureEngine(private val realOut: Output) {
             if (scrollAnchor.isNaN()) scrollAnchor = y
             scrollAccum += (scrollAnchor - y)
             scrollAnchor = y
-            val notches = (scrollAccum / SCROLL_DIVISOR).toInt()
+            val divisor = SCROLL_DIVISOR / scrollGain
+            val notches = (scrollAccum / divisor).toInt()
             if (notches != 0) {
                 out.scroll(notches)
-                scrollAccum -= notches * SCROLL_DIVISOR
+                scrollAccum -= notches * divisor
                 logEv("scroll", mapOf("notches" to notches))
             }
             out.state("scroll", "move hand up or down")

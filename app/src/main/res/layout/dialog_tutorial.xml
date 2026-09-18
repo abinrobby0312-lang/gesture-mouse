@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/carbon_fiber"
+    android:background="@drawable/app_background"
     android:fitsSystemWindows="true">
 
     <androidx.viewpager2.widget.ViewPager2
