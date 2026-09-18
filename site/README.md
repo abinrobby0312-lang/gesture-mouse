@@ -34,7 +34,13 @@ git push origin site-publish:gh-pages --force
 git branch -D site-publish
 ```
 
-GitHub Pages rebuilds within a minute or two.
+GitHub Pages rebuilds within a minute or two. Pages lets browsers cache files
+for 10 minutes, so before deploying a change to `site.js`, `site.css` or
+`config.js`, bump the `?v=` on their links in the three HTML files:
+
+```
+V=$(date +%Y%m%d%H%M); sed -i -E "s#\?v=[0-9]+#?v=$V#g" site/*.html
+```
 
 ## Releasing a new app version
 
