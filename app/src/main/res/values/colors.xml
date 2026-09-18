@@ -2,28 +2,43 @@
 <resources>
 
     <!--
-        Light theme. Same roles as the dark palette in values-night — `ink` is
-        the base, `paper` the text — with the reds and amber deepened so they
-        keep their contrast on a light ground (the dark theme's neon red is too
-        pale to read as text on white).
+        Light theme, from the Gesture Mouse logo (see brand/BRAND.md).
+
+        Roles, same in both themes:
+          ink    base background        panel  raised surfaces (tabs, sheets)
+          line   borders / dividers     paper  primary text
+          dim    secondary text
+          track  primary accent: selection, sliders, buttons — logo magenta
+          ok     connected / good — the "MOUSE" lime
+          fire   pending / waiting — the hand's orange
+          fault  errors — a true red, kept well apart from magenta's hue
+          cyan   highlight — the phone screen
+
+        The accents are deepened from the logo's neon values so they keep a
+        readable contrast on a light ground; values-night uses them as drawn.
     -->
-    <color name="ink">#FFF3F3F6</color>
+    <color name="ink">#FFF4F6FA</color>
     <color name="panel">#FFFFFFFF</color>
-    <color name="line">#FFD5D5DD</color>
-    <color name="paper">#FF16161B</color>
-    <color name="dim">#FF5E5E6B</color>
-    <color name="track">#FFD7102D</color>     <!-- red: active, connected -->
-    <color name="fire">#FFB86E00</color>      <!-- amber: pending, waiting -->
-    <color name="fault">#FF7A1428</color>     <!-- deep crimson: error, off -->
+    <color name="line">#FFDADDEA</color>
+    <color name="paper">#FF0B0D3A</color>     <!-- the logo's outline navy -->
+    <color name="dim">#FF565A7E</color>
+    <color name="track">#FFC800B6</color>     <!-- magenta -->
+    <color name="ok">#FF3F8C00</color>        <!-- lime -->
+    <color name="fire">#FFC25E00</color>      <!-- orange -->
+    <color name="fault">#FFC62834</color>     <!-- red -->
+    <color name="cyan">#FF00929A</color>
 
-    <color name="overlay_edge_on">#99D7102D</color>
-    <color name="overlay_edge_off">#66D5D5DD</color>
-    <color name="overlay_hand_on">#CCD7102D</color>
-    <color name="overlay_hand_off">#995E5E6B</color>
-    <color name="overlay_halo">#59D7102D</color>
+    <color name="overlay_edge_on">#99C800B6</color>
+    <color name="overlay_edge_off">#66DADDEA</color>
+    <color name="overlay_hand_on">#CCC800B6</color>
+    <color name="overlay_hand_off">#99565A7E</color>
+    <color name="overlay_halo">#5900929A</color>
 
-    <!-- text on the red accent; white in both themes -->
+    <!-- text on the magenta accent; white in both themes -->
     <color name="on_accent">#FFFFFFFF</color>
+
+    <!-- launcher icon ground: the logo's own light background, in both themes -->
+    <color name="icon_background">#FFF4F6FA</color>
 
     <bool name="light_bars">true</bool>
 </resources>

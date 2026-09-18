@@ -193,7 +193,7 @@ class MainActivity : AppCompatActivity() {
         lastState = state
         lastMsg = msg
         val color = ContextCompat.getColor(this, when (state) {
-            HidMouse.State.CONNECTED -> R.color.track
+            HidMouse.State.CONNECTED -> R.color.ok
             HidMouse.State.REGISTERING, HidMouse.State.CONNECTING -> R.color.fire
             HidMouse.State.WAITING -> R.color.dim
             else -> R.color.fault

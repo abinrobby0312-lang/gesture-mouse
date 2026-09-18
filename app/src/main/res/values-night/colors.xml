@@ -2,30 +2,29 @@
 <resources>
 
     <!--
-        Dark theme: carbon fibre and neon red.
+        Dark theme, from the Gesture Mouse logo (see brand/BRAND.md). Roles are
+        described in values/colors.xml.
 
-        One deliberate choice worth knowing: `track` (the active/connected
-        accent) is the neon red, so red means *good* here. That leaves errors
-        needing to be told apart from it, which `fault` does by being much
-        darker rather than a different hue - a bright signal reads as live, a
-        dark one as dead, and both stay inside the palette.
+        The ground is the logo's outline navy taken nearly to black, so the
+        neon accents sit on it the way they sit on the artwork's own outlines.
+        Accents are the logo's colours as drawn.
     -->
-    <color name="ink">#FF0A0A0C</color>       <!-- base, under the weave -->
-    <color name="panel">#FF141418</color>
-    <color name="line">#FF2A2A32</color>
-    <color name="paper">#FFE8E8EC</color>
-    <color name="dim">#FF7C7C88</color>
-    <color name="track">#FFFF1F3D</color>     <!-- neon red: active, connected -->
-    <color name="fire">#FFFFA62B</color>      <!-- amber: pending, waiting -->
-    <color name="fault">#FF8C2233</color>     <!-- deep crimson: error, off -->
+    <color name="ink">#FF0B0C1F</color>
+    <color name="panel">#FF14163A</color>
+    <color name="line">#FF2B2E5E</color>
+    <color name="paper">#FFF3F3FF</color>
+    <color name="dim">#FF9296C2</color>
+    <color name="track">#FFF50BE0</color>     <!-- magenta -->
+    <color name="ok">#FF98ED13</color>        <!-- lime -->
+    <color name="fire">#FFFF9A3C</color>      <!-- orange -->
+    <color name="fault">#FFFF5468</color>     <!-- red -->
+    <color name="cyan">#FF07DFDD</color>
 
-    <!-- Overlay colours carry their own alpha, so they're declared rather than
-         computed at draw time. -->
-    <color name="overlay_edge_on">#8CFF1F3D</color>
-    <color name="overlay_edge_off">#472A2A32</color>
-    <color name="overlay_hand_on">#BFFF1F3D</color>
-    <color name="overlay_hand_off">#807C7C88</color>
-    <color name="overlay_halo">#59FF1F3D</color>
+    <color name="overlay_edge_on">#8CF50BE0</color>
+    <color name="overlay_edge_off">#472B2E5E</color>
+    <color name="overlay_hand_on">#BFF50BE0</color>
+    <color name="overlay_hand_off">#809296C2</color>
+    <color name="overlay_halo">#5907DFDD</color>
 
     <color name="on_accent">#FFFFFFFF</color>
 

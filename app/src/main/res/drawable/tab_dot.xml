@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Page indicator for the tutorial: neon red on the current page, dim elsewhere.
+    Page indicator for the tutorial: brand magenta on the current page, dim elsewhere.
 
     Each state is a layer-list with a gravity-centred, explicitly sized item
     rather than a bare <shape>. TabLayout stretches a tab's background to fill

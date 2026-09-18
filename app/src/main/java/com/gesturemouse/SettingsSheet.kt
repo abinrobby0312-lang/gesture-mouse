@@ -253,7 +253,7 @@ class SettingsSheet : BottomSheetDialogFragment() {
             SensitivityTracker.Verdict.LEARNING -> R.color.dim to
                     "Watching how you use the $what. Move to things as you normally " +
                     "would — ${r.aims} of ${SensitivityTracker.MIN_AIMS} moves seen so far."
-            SensitivityTracker.Verdict.GOOD -> R.color.track to
+            SensitivityTracker.Verdict.GOOD -> R.color.ok to
                     "Looks right. ${r.aims - r.overshoots - r.clutches} of your last ${r.aims} " +
                     "moves landed without overshooting or re-stroking."
             SensitivityTracker.Verdict.TOO_FAST -> R.color.fire to

@@ -25,7 +25,9 @@ import com.gesturemouse.databinding.ItemTutorialPageBinding
  */
 class TutorialDialog : DialogFragment() {
 
-    private data class Page(val step: String, val title: String, val body: String)
+    private data class Page(
+        val step: String, val title: String, val body: String, val logo: Boolean = false
+    )
 
     private val pages = listOf(
         Page(
@@ -34,7 +36,8 @@ class TutorialDialog : DialogFragment() {
             "Gesture Mouse turns this phone into a Bluetooth mouse. Your computer " +
                 "needs nothing installed — it just sees an ordinary wireless mouse " +
                 "and uses the driver it already has.\n\nEverything runs on the phone. " +
-                "No video and no tracking data ever leave the device."
+                "No video and no tracking data ever leave the device.",
+            logo = true
         ),
         Page(
             "Step 2 of 5",
@@ -149,6 +152,7 @@ class TutorialDialog : DialogFragment() {
             holder.binding.pageStep.text = p.step
             holder.binding.pageTitle.text = p.title
             holder.binding.pageBody.text = p.body
+            holder.binding.pageLogo.visibility = if (p.logo) View.VISIBLE else View.GONE
         }
     }
 

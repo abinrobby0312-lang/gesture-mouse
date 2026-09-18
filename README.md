@@ -13,6 +13,12 @@ exists.
 video, no landmarks and no usage data leave the handset, and the app requests
 no internet permission at all.
 
+## Brand
+
+The logo, icon, colours and usage rules live in [`brand/`](brand/BRAND.md).
+Both themes are built from the logo's palette: magenta for the accent, lime
+for connected, orange for waiting.
+
 ## Requirements
 
 | | |
@@ -62,8 +68,8 @@ Pair it the way you'd pair any Bluetooth mouse — from the computer.
 2. On the computer: Bluetooth settings → **Add device** → Bluetooth.
 3. Pick the phone (its Bluetooth name, e.g. *"Abin's Pixel"*) and confirm the
    code on both screens.
-4. The computer connects the mouse on its own and the status strip turns
-   red (the accent colour means live here): *Connected to …*.
+4. The computer connects the mouse on its own and the status dot turns
+   lime: *Connected to …*.
 
 After that, just open the app: it reconnects to that computer by itself, and
 again if the link drops while it's running.

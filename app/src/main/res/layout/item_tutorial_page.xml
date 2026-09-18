@@ -6,6 +6,19 @@
     android:gravity="center_vertical"
     android:paddingHorizontal="28dp">
 
+    <!-- the brand logo, first page only -->
+    <ImageView
+        android:id="@+id/pageLogo"
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="20dp"
+        android:adjustViewBounds="true"
+        android:contentDescription="Gesture Mouse"
+        android:scaleType="fitCenter"
+        android:src="@drawable/logo_full"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/pageStep"
         android:layout_width="wrap_content"

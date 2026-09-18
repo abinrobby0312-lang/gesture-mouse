@@ -89,6 +89,13 @@ including the light theme (the last three by the owner, 2026-09-18). The
 contact address is never displayed; it appears only as the recipient in the
 email app.
 
+**Brand (1.6.0):** the app follows the logo in `brand/` — see
+`brand/BRAND.md`. Launcher icon = the logo mark on its light ground, fitted
+by measurement inside the 66dp safe circle (`brand/tools/icon_build.py`). Both
+palettes rebuilt from the logo; **connected is now lime**, not red; the carbon
+weave background is gone (flat ground). Logo shows on the walkthrough's first
+page and in Settings → Help & contact, light/dark variant chosen by theme.
+
 **Also verified:** reconnect on app launch to the remembered host (~1 s), and
 recovery from a dropped link.
 
@@ -107,7 +114,7 @@ the whole reason this file exists.
 - **Branch:** `claude/gesture-mouse-apk-build-18aria`
 - **PR:** https://github.com/abinrobby0312-lang/gesture-mouse/pull/2 (draft)
 - **Repo:** `abinrobby0312-lang/gesture-mouse`
-- **Version:** `versionCode 6`, `versionName 1.5.0` (was 3 / 1.2.0 before the hardware session)
+- **Version:** `versionCode 7`, `versionName 1.6.0` (was 3 / 1.2.0 before the hardware session)
 
 ## What changed and why
 
