@@ -99,8 +99,10 @@ page and in Settings → Help & contact, light/dark variant chosen by theme.
 **Distribution (1.7.0, first public build):** landing page in `site/`
 (deployed from the `gh-pages` branch to GitHub Pages), forms backed by a
 Supabase project defined in `site/supabase/schema.sql` (anonymous visitors can
-insert only), releases on GitHub Releases as `GestureMouse.apk`. The site only
-offers releases ≥ `minVersion` in `site/config.js`. **No INTERNET permission:**
+insert only), releases on GitHub Releases as `GestureMouse.apk`. The download
+button reads `site/assets/release.json`, not GitHub's API (rate-limited per IP,
+and carriers share IPs). v1.0.0/v1.1.0 were unpublished back to drafts — 1.7.0
+is the first public build. **No INTERNET permission:**
 MediaPipe's datatransport telemetry added it; the manifest now removes it and
 unregisters the upload backend (verified on hardware: hand tracking works, no
 crash, no upload job scheduled). Settings → Help & contact has a "Report how it
