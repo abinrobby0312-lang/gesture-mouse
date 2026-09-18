@@ -5,8 +5,10 @@ name: Build
 # developed against.
 
 on:
+  # PR branches are covered by the pull_request trigger; listing them under
+  # push as well ran every build twice.
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
