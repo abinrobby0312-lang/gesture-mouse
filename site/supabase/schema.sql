@@ -69,3 +69,21 @@ do $$ begin
     revoke execute on function public.rls_auto_enable() from anon, authenticated, public;
   end if;
 end $$;
+
+-- download counting --------------------------------------------------------
+-- One row per tap of the site's "Download for Android" button. Anonymous by
+-- design: version, the ?src= tag of the link the visitor arrived from, and
+-- phone vs computer. No IP, no identifier. GitHub's download_count on the
+-- release asset is the overall total; this adds where downloads come from.
+create table public.download_clicks (
+  id          bigint generated always as identity primary key,
+  version     text not null check (char_length(version) between 1 and 20),
+  source      text not null default 'site' check (char_length(source) between 1 and 40),
+  platform    text not null check (platform in ('android', 'desktop', 'other')),
+  created_at  timestamptz not null default now()
+);
+alter table public.download_clicks enable row level security;
+revoke all on public.download_clicks from anon, authenticated;
+grant insert (version, source, platform) on public.download_clicks to anon;
+create policy "anyone can count a download" on public.download_clicks
+  for insert to anon with check (true);
