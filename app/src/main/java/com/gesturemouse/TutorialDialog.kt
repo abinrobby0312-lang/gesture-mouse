@@ -17,15 +17,17 @@ import com.gesturemouse.databinding.ItemTutorialPageBinding
  * The first-run walkthrough.
  *
  * Shown once automatically, then never again unless asked for — the flag lives
- * in [PREFS] so it survives reinstall-free app restarts, and the help button in
- * [MainActivity] reopens it on demand. Nothing here is interactive beyond
+ * in [PREFS] so it survives reinstall-free app restarts, and Settings → Help &
+ * contact ([SettingsSheet]) reopens it on demand. Nothing here is interactive beyond
  * paging; it exists because none of the gestures are discoverable by poking at
  * the screen, and a Bluetooth mouse that needs pairing before it does anything
  * is a bad first impression without a word of explanation.
  */
 class TutorialDialog : DialogFragment() {
 
-    private data class Page(val step: String, val title: String, val body: String)
+    private data class Page(
+        val step: String, val title: String, val body: String, val logo: Boolean = false
+    )
 
     private val pages = listOf(
         Page(
@@ -34,18 +36,19 @@ class TutorialDialog : DialogFragment() {
             "Gesture Mouse turns this phone into a Bluetooth mouse. Your computer " +
                 "needs nothing installed — it just sees an ordinary wireless mouse " +
                 "and uses the driver it already has.\n\nEverything runs on the phone. " +
-                "No video and no tracking data ever leave the device."
+                "No video and no tracking data ever leave the device.",
+            logo = true
         ),
         Page(
             "Step 2 of 5",
             "Pair it first",
-            "Nothing works until the computer is connected.\n\n" +
-                "1.  Tap PAIR at the top\n" +
-                "2.  Pick your computer from the list\n" +
-                "3.  Confirm the matching code on both screens\n\n" +
-                "The dot turns red when you're connected. If it was paired before " +
-                "this app existed, remove it on the computer first and pair again " +
-                "from here."
+            "Pair it like any Bluetooth mouse and keyboard.\n\n" +
+                "1.  Keep this app open\n" +
+                "2.  On the computer, open Bluetooth settings → Add device\n" +
+                "3.  Pick this phone and confirm the code on both screens\n\n" +
+                "The strip at the top shows when you're connected. After the first " +
+                "time, just open the app and it reconnects. Tap the strip any time " +
+                "for these steps."
         ),
         Page(
             "Step 3 of 5",
@@ -55,7 +58,8 @@ class TutorialDialog : DialogFragment() {
                 "•  Tap — left click\n" +
                 "•  Two-finger drag — scroll\n" +
                 "•  Two-finger tap — right click\n" +
-                "•  Tap, then press and hold — drag something"
+                "•  Tap, then press and hold — drag something\n" +
+                "•  ⌨ in the corner — type on the computer with this phone's keyboard"
         ),
         Page(
             "Step 4 of 5",
@@ -75,7 +79,7 @@ class TutorialDialog : DialogFragment() {
                 "seconds without real use, the Air tab stops reacting entirely and " +
                 "shows \"sleeping\".\n\nTo wake it, hold one open palm steady for 3 " +
                 "seconds — there's a countdown on screen.\n\nYou can reopen this " +
-                "guide any time with the ? button."
+                "guide any time from ⚙ Settings → Help & contact."
         )
     )
 
@@ -148,6 +152,7 @@ class TutorialDialog : DialogFragment() {
             holder.binding.pageStep.text = p.step
             holder.binding.pageTitle.text = p.title
             holder.binding.pageBody.text = p.body
+            holder.binding.pageLogo.visibility = if (p.logo) View.VISIBLE else View.GONE
         }
     }
 

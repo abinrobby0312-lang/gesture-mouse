@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    App background: the theme's base colour. Flat on purpose — the logo's
+    colour lives in the accents; a textured ground competes with the trackpad
+    and the camera overlay.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/ink" />
+</shape>

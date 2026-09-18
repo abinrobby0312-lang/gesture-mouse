@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Light theme, from the Gesture Mouse logo (see brand/BRAND.md).
+
+        Roles, same in both themes:
+          ink    base background        panel  raised surfaces (tabs, sheets)
+          line   borders / dividers     paper  primary text
+          dim    secondary text
+          accent primary accent: selection, sliders, buttons. Chosen in
+                 Settings (magenta / orange / sky blue), read as
+                 ?attr/brandAccent — see styles_accent.xml
+          ok     connected / good — the "MOUSE" lime
+          fire   pending / waiting — the hand's orange
+          fault  errors — a true red, kept well apart from magenta's hue
+          cyan   highlight — the phone screen
+
+        The accents are deepened from the logo's neon values so they keep a
+        readable contrast on a light ground; values-night uses them as drawn.
+    -->
+    <color name="ink">#FFF4F6FA</color>
+    <color name="panel">#FFFFFFFF</color>
+    <color name="line">#FFDADDEA</color>
+    <color name="paper">#FF0B0D3A</color>     <!-- the logo's outline navy -->
+    <color name="dim">#FF565A7E</color>
+    <!-- accent choices (Settings → Appearance); ?attr/brandAccent picks one -->
+    <color name="accent_magenta">#FFC800B6</color>
+    <color name="accent_orange">#FFC25E00</color>
+    <color name="accent_sky">#FF0072B5</color>
+    <color name="on_accent_magenta">#FFFFFFFF</color>
+    <color name="on_accent_orange">#FFFFFFFF</color>
+    <color name="on_accent_sky">#FFFFFFFF</color>
+    <color name="ok">#FF3F8C00</color>        <!-- lime -->
+    <color name="fire">#FFC25E00</color>      <!-- orange -->
+    <color name="waiting_amber">#FF8F6A00</color> <!-- waiting, when orange is the accent -->
+    <color name="fault">#FFC62834</color>     <!-- red -->
+    <color name="cyan">#FF00929A</color>
+
+    <!-- hand overlay, idle states; the active ones are the accent with alpha -->
+    <color name="overlay_edge_off">#66DADDEA</color>
+    <color name="overlay_hand_off">#99565A7E</color>
+
+    <!-- launcher icon ground: the logo's own light background, in both themes -->
+    <color name="icon_background">#FFF4F6FA</color>
+
+    <bool name="light_bars">true</bool>
+</resources>

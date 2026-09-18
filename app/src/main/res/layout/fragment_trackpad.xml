@@ -6,11 +6,34 @@
     android:background="@color/ink"
     android:padding="12dp">
 
-    <com.gesturemouse.TrackpadSurface
-        android:id="@+id/surface"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1">
+
+        <com.gesturemouse.TrackpadSurface
+            android:id="@+id/surface"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- opens the phone's keyboard; what's typed goes to the computer.
+             Sits over the pad's corner, where it costs the least room to drag
+             in; touches on it don't reach the pad underneath. -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnKeyboard"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="10dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minWidth="0dp"
+            android:padding="0dp"
+            android:text="⌨"
+            android:textSize="20sp"
+            android:contentDescription="Keyboard" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/hint"
@@ -56,4 +79,10 @@
             android:text="Right"
             android:textSize="11sp" />
     </LinearLayout>
+
+    <!-- invisible target for the phone keyboard; see KeyboardInput -->
+    <com.gesturemouse.KeyboardInput
+        android:id="@+id/keyboardInput"
+        android:layout_width="1dp"
+        android:layout_height="1dp" />
 </LinearLayout>

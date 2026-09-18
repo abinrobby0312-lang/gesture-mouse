@@ -4,11 +4,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/carbon_fiber"
+    android:background="@drawable/app_background"
     android:fitsSystemWindows="true">
 
     <!-- connection strip: this is the only thing standing between the app and
-         a host, so it stays visible above both tabs -->
+         a host, so it stays visible above both tabs. It only reports; pairing
+         happens in the computer's own Bluetooth settings, and tapping the
+         strip explains how. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -17,46 +19,50 @@
         android:paddingHorizontal="14dp"
         android:paddingVertical="10dp">
 
-        <View
-            android:id="@+id/statusDot"
-            android:layout_width="9dp"
-            android:layout_height="9dp"
-            android:layout_marginEnd="9dp"
-            android:background="@drawable/dot" />
-
-        <TextView
-            android:id="@+id/statusText"
+        <LinearLayout
+            android:id="@+id/statusStrip"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Starting…"
-            android:textSize="12sp"
-            android:textColor="@color/paper"
-            android:maxLines="2" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:minHeight="40dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="Connection status. Tap for how to connect.">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/pairButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:minWidth="0dp"
-            android:paddingHorizontal="14dp"
-            android:text="Pair"
-            android:textSize="11sp" />
+            <View
+                android:id="@+id/statusDot"
+                android:layout_width="9dp"
+                android:layout_height="9dp"
+                android:layout_marginEnd="9dp"
+                android:background="@drawable/dot" />
 
-        <!-- reopens the first-run walkthrough; none of the gestures are
-             discoverable by poking at the screen, so it needs a way back -->
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Starting…"
+                android:textSize="12sp"
+                android:textColor="@color/paper"
+                android:maxLines="2" />
+        </LinearLayout>
+
+        <!-- settings: sensitivity, scrolling, theme, connection, and help —
+             the walkthrough that used to have this corner lives in there now -->
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/helpButton"
+            android:id="@+id/settingsButton"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
             android:minWidth="0dp"
             android:paddingHorizontal="12dp"
-            android:text="?"
-            android:contentDescription="Show the walkthrough"
-            android:textSize="11sp" />
+            android:text="⚙"
+            android:contentDescription="Settings"
+            android:textSize="16sp" />
     </LinearLayout>
 
     <com.google.android.material.tabs.TabLayout
@@ -66,8 +72,8 @@
         app:tabGravity="fill"
         app:tabMode="fixed"
         app:tabTextColor="@color/dim"
-        app:tabSelectedTextColor="@color/track"
-        app:tabIndicatorColor="@color/track"
+        app:tabSelectedTextColor="?attr/brandAccent"
+        app:tabIndicatorColor="?attr/brandAccent"
         android:background="@color/panel" />
 
     <androidx.viewpager2.widget.ViewPager2

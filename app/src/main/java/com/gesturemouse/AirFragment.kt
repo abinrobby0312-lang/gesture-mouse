@@ -72,10 +72,12 @@ class AirFragment : Fragment(), GestureEngine.Output {
         engine.logger = { k, d -> log?.log(k, d) }
         analysisExecutor = Executors.newSingleThreadExecutor()
 
-        b.speed.addOnChangeListener { _, value, _ ->
-            engine.speed = value
-            log?.log("speed", mapOf("value" to value))
+        // the slider here and the one in Settings are the same value
+        b.speed.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) settings.airSpeed = value
         }
+        stopListening = settings.listen { applySettings() }
+        applySettings()
         b.flip.setOnClickListener {
             frontCamera = !frontCamera
             engine.release()
@@ -226,6 +228,7 @@ class AirFragment : Fragment(), GestureEngine.Output {
         } else {
             engine.release()
         }
+        trackPad(now)
 
         frames++
         if (now - fpsMark > 1000) {
@@ -253,7 +256,10 @@ class AirFragment : Fragment(), GestureEngine.Output {
 
     // ---- GestureEngine.Output -------------------------------------------------
 
-    override fun move(dx: Float, dy: Float) { mouse?.move(dx, dy) }
+    override fun move(dx: Float, dy: Float) {
+        mouse?.move(dx, dy)
+        tracker?.move(dx, dy, SystemClock.uptimeMillis())
+    }
     override fun click() { mouse?.click(HidMouse.BUTTON_LEFT) }
     override fun rightClick() { mouse?.click(HidMouse.BUTTON_RIGHT) }
     override fun buttonDown() { mouse?.buttonDown(HidMouse.BUTTON_LEFT) }
@@ -267,7 +273,30 @@ class AirFragment : Fragment(), GestureEngine.Output {
         }
     }
 
+    private val settings by lazy { Settings.get(requireContext()) }
+    private var stopListening: (() -> Unit)? = null
+    private val tracker: SensitivityTracker? get() = (activity as? MainActivity)?.airTracker
+    private var trackerOnPad = false
+
+    private fun applySettings() {
+        val speed = settings.airSpeed
+        if (engine.speed != speed) log?.log("speed", mapOf("value" to speed))
+        engine.speed = speed
+        engine.scrollGain = settings.scrollSpeed
+        _b?.speed?.let { if (it.value != speed) it.value = speed }
+    }
+
+    /** Hand onto / off the pad are the Air tab's finger-down and lift. */
+    private fun trackPad(now: Long) {
+        val on = engine.onPad
+        if (on && !trackerOnPad) tracker?.begin(now)
+        if (!on && trackerOnPad) tracker?.lift()
+        trackerOnPad = on
+    }
+
     override fun onDestroyView() {
+        stopListening?.invoke()
+        stopListening = null
         super.onDestroyView()
         engine.release()
         analysis = null

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Legacy Bluetooth permissions, superseded on Android 12+ -->
     <uses-permission android:name="android.permission.BLUETOOTH"
@@ -13,14 +14,21 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 
-    <!-- SCAN is what lets the app find an unpaired computer itself, rather
-         than only listing devices the phone already knows about.
-         neverForLocation keeps this from dragging in location permission. -->
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_SCAN"
-        android:usesPermissionFlags="neverForLocation" />
-
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <!--
+        No internet access. MediaPipe (hand tracking) brings in Google's
+        datatransport library to upload its own usage statistics, and that
+        library adds INTERNET to the merged manifest. It's removed here, and
+        the upload backend is unregistered below — without a backend the
+        library deletes its events instead of sending them, so no network code
+        runs at all. (Removing only the permission isn't enough: a lookup
+        without it throws a SecurityException the library doesn't catch.)
+
+        ACCESS_NETWORK_STATE stays: it can't send anything, and the library's
+        job scheduler throws without it.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
 
     <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
@@ -31,6 +39,15 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.GestureMouse">
+
+        <!-- see the INTERNET note above: unregister MediaPipe's telemetry upload -->
+        <service
+            android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"
+            tools:node="merge">
+            <meta-data
+                android:name="backend:com.google.android.datatransport.cct.CctBackendFactory"
+                tools:node="remove" />
+        </service>
 
         <!-- fullUser, not fullSensor: it follows the system auto-rotate toggle
              instead of overriding it, so locking rotation still works.
@@ -44,6 +61,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:screenOrientation="fullUser"
+            android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

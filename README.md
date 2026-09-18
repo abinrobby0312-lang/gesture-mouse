@@ -10,8 +10,16 @@ macOS, Linux, iPadOS, Android TV — all work, and none of them know this app
 exists.
 
 **Everything runs on the phone.** Hand tracking is on-device MediaPipe; no
-video, no landmarks and no usage data leave the handset, and the app requests
-no internet permission at all.
+video, no landmarks and no usage data leave the handset, and the app has no
+internet permission. (MediaPipe ships Google's usage-statistics uploader; the
+manifest removes both its INTERNET permission and its upload backend, so its
+events are discarded on the phone — see `AndroidManifest.xml`.)
+
+## Brand
+
+The logo, icon, colours and usage rules live in [`brand/`](brand/BRAND.md).
+Both themes are built from the logo's palette: magenta for the accent, lime
+for connected, orange for waiting.
 
 ## Requirements
 
@@ -19,14 +27,16 @@ no internet permission at all.
 |---|---|
 | Android | **9.0 (API 28)** or newer — when `BluetoothHidDevice` landed |
 | CPU | ARM (`arm64-v8a` / `armeabi-v7a`); no x86 build |
-| Permissions | Bluetooth (connect/scan/advertise) and Camera, both asked for on first run |
+| Permissions | Bluetooth ("Nearby devices") and Camera, both asked for on first run |
 | Host | Anything that accepts a Bluetooth mouse — nothing to install on it |
 
 ## Install
 
-Download `GestureMouse.apk`, copy it to the phone, and tap it. Android will ask
-you to allow installing from this source — that prompt is expected for any app
-that doesn't come from a store.
+Get it from **[the Gesture Mouse site](https://abinrobby0312-lang.github.io/gesture-mouse/)**
+on your phone, or download `GestureMouse.apk` from the
+[latest release](https://github.com/abinrobby0312-lang/gesture-mouse/releases/latest).
+Android will ask you to allow installing from this source — that prompt is
+expected for any app that doesn't come from a store.
 
 If you have `adb`:
 
@@ -49,34 +59,107 @@ and goes away when the app is uninstalled. Nothing is ever uploaded.
 
 A five-step walkthrough opens the first time you launch the app, covering
 pairing, both sets of gestures, and the sleep behaviour. It's shown once and
-then remembered — reopen it any time with the **?** button in the top right.
+then remembered — reopen it any time from **⚙ Settings → Help & contact**.
 
 Permission prompts deliberately wait until the walkthrough is finished, so the
 camera is only requested after you've been told what it's for.
 
 ## Connect
 
-1. Open the app and grant Bluetooth + Camera when asked.
-2. The status strip turns amber: *"Ready — pair Gesture Mouse from your computer"*.
-3. Tap **Pair**. The app scans and lists nearby computers.
-4. Tap yours. The app bonds and connects the mouse in one step — confirm the
-   matching code on both screens.
-5. Status turns teal. The cursor now answers to the phone.
+Pair it the way you'd pair any Bluetooth mouse — from the computer.
 
-After the first time it reconnects on its own whenever you open the app.
+1. Open the app, grant Bluetooth + Camera, and **keep it on screen**.
+2. On the computer: Bluetooth settings → **Add device** → Bluetooth.
+3. Pick the phone (its Bluetooth name, e.g. *"Abin's Pixel"*) and confirm the
+   code on both screens.
+4. The computer connects the mouse on its own and the status dot turns
+   lime: *Connected to …*.
 
-### Pair from the app, not from the computer
+After that, just open the app: it reconnects to that computer by itself, and
+again if the link drops while it's running.
 
-This matters more than it looks. A host reads a device's service list **once**,
-while bonding, and caches it forever after. If the phone was already paired to
-that computer for file transfer or audio, the cached list contains no mouse and
-the host will never route pointer input to it — the connection reaches
-CONNECTING and then times out.
+The status strip only reports. Tap it for these steps, a **Make visible**
+button (for when the computer can't find the phone) and a shortcut to the
+phone's Bluetooth settings.
 
-If a computer was paired before this app existed, **remove the pairing on both
-sides first**, then pair through the app's own Pair button with the status strip
-showing *Ready*. That guarantees the HID service is advertising at the moment
-the host takes its snapshot.
+### Why the app has to be open while pairing
+
+A host reads a device's service list **once**, while bonding, and caches it
+forever after. Pair while the app is closed and the cached list has no mouse
+in it: the computer accepts the connection and drops it a few seconds later,
+every time. The strip then says the computer *is paired but won't accept the
+mouse* — remove the pairing on both sides and pair again with the app open.
+
+The mouse service also only exists while the app is in the foreground; Android
+drops it when the app is backgrounded and the app re-registers it on return.
+
+### How connecting works
+
+- **New pairing:** the computer opens the mouse connection itself (Windows
+  does so before the phone has even reported the bond). The phone only asks
+  if nothing has arrived after 10 s — Windows refuses phone-initiated
+  connections while it is still setting the device up.
+- **Reopening the app / dropped link:** reconnects to the last computer the
+  mouse worked with. Up to four attempts with a widening gap, then a reason.
+- **Never:** trying every paired computer. The phone has one HID connection
+  slot; old pairings that refuse the mouse hold it for most of a minute, and
+  doing that across a new pairing is exactly what stopped it connecting.
+- While a pairing is in progress, reconnecting stays out of its way — the
+  pairing prompt pauses the app, and the resume after it must not start a
+  competing connection.
+
+## Keyboard
+
+Tap **⌨** in the trackpad's bottom-right corner and the phone's own keyboard
+opens; whatever you type goes to the computer as keystrokes. Any keyboard app
+works — including swipe typing, autocorrect and voice typing, which rewrite
+whole words: the app keeps a mirror of what's been typed and sends only the
+difference (backspaces for what was removed, keys for what was added).
+
+- **It can't open by itself** when you click a text field on the computer. A
+  Bluetooth keyboard hears nothing from the computer except the Caps/Num Lock
+  lights; knowing about text fields would need software on the computer.
+- **US key layout.** A keyboard sends key positions, not characters, and the
+  computer maps them through *its* layout. Letters and digits are right
+  everywhere; on a computer set to e.g. French or German some symbols come out
+  as different ones. Characters with no US key (é, emoji) are skipped.
+- **Upgrading from 1.3 or earlier:** the phone now describes itself as a mouse
+  *and* keyboard. Computers cache that description at pairing, so remove the
+  pairing on both sides and pair once more, or the keys are ignored.
+
+## Settings
+
+**⚙** in the top-right corner opens Settings as a sheet over the running app,
+so the mouse stays connected and every change applies immediately. Settings
+are kept between launches.
+
+| Tab | What's there |
+|---|---|
+| **Sensitivity** | Pointer speed for the trackpad and for air gestures, each with a **sensitivity tracker**; reset to defaults |
+| **Scrolling** | Scroll speed (both tabs), natural scrolling, keyboard notes |
+| **Appearance** | Theme: System, Light or Dark |
+| **Connection** | Status, how to connect, make the phone visible, phone Bluetooth settings, forget the remembered computer |
+| **Help & contact** | The walkthrough, **Email us**, app and phone version |
+
+**The sensitivity tracker** watches real use rather than asking. Two patterns
+count, and only on long, purposeful moves:
+
+- **Overshoot** — sailing past the target and coming back without lifting:
+  too fast.
+- **Clutching** — lifting and immediately stroking again the same way to get
+  there: too slow.
+
+After ten such moves it gives a verdict over the last thirty and offers a
+one-tap change of 15%; it starts fresh whenever that speed changes. Trackpad
+and air gestures are tracked separately.
+
+**Email us** opens the phone's own email app, addressed, with the app version,
+phone model and Android version filled in; nothing is sent until the person
+sends it. The address is never shown in the app itself — only as the
+recipient of that email. With no email app installed, it's copied to the
+clipboard instead.
+
+**Switching theme** redraws the app, so the computer reconnects for a moment.
 
 ### The computer's name, not the app's
 
@@ -203,10 +286,14 @@ drag the cursor with them.
 ```
 app/src/main/java/com/gesturemouse/
   HidMouse.kt          Bluetooth HID mouse — descriptor, reports, connection
-  DevicePicker.kt      scan, bond and connect while HID is advertising
   GestureEngine.kt     hand landmarks -> mouse intents (pure logic, unit-tested)
-  MainActivity.kt      tabs, permissions, pairing
-  TrackpadFragment.kt  touch tab
+  KeyMap.kt            characters -> HID key usages, US layout (unit-tested)
+  KeyboardInput.kt     phone keyboard -> keystrokes, by diffing a mirror
+  MainActivity.kt      tabs, permissions, status strip + connect help
+  TrackpadFragment.kt  touch tab + keyboard button
+  Settings.kt          persisted preferences, snapped to slider steps
+  SettingsSheet.kt     the tabbed settings sheet, tracker readouts, contact
+  SensitivityTracker.kt overshoot / clutch detection (pure logic, unit-tested)
   TrackpadSurface.kt   the touch surface itself
   AirFragment.kt       camera + MediaPipe, feeds GestureEngine
   HandOverlay.kt       skeleton and gear indicator
@@ -241,7 +328,10 @@ onConnectionStateChanged device=… state=2      <- 2 means connected
 | Symptom | Cause |
 |---|---|
 | No `GMouse` lines at all | The HID service never registered — reopen the app |
-| Reaches `state=1` then `state=0` | Host has a cached service list with no mouse in it. Unpair on both sides and pair again from the app |
+| Reaches `state=1` then `state=0` | Host has a cached service list with no mouse in it. The app now detects this after its last attempt and offers to unpair; you still have to remove the pairing on the computer too |
+| `connect attempt n/4 … returned false` | The stack refused the request outright — usually not registered yet, or Bluetooth was toggled mid-attempt |
+| `giving up … stale service list?` | The cached-service-list case above, confirmed. Re-pair from the app |
+| `HID service didn't start` | Registration never completed; the connect gave up waiting. Reopen the app |
 | Connected but the pointer won't move | Check for `onSetProtocol boot=true`; a protocol mismatch parks the cursor |
 | No scrolling on macOS | Expected in boot protocol — it has no wheel field |
 

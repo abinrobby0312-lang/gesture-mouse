@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Dark theme, from the Gesture Mouse logo (see brand/BRAND.md). Roles are
+        described in values/colors.xml.
+
+        The ground is the logo's outline navy taken nearly to black, so the
+        neon accents sit on it the way they sit on the artwork's own outlines.
+        Accents are the logo's colours as drawn.
+    -->
+    <color name="ink">#FF0B0C1F</color>
+    <color name="panel">#FF14163A</color>
+    <color name="line">#FF2B2E5E</color>
+    <color name="paper">#FFF3F3FF</color>
+    <color name="dim">#FF9296C2</color>
+    <color name="accent_magenta">#FFF50BE0</color>
+    <color name="accent_orange">#FFFF9A3C</color>
+    <color name="accent_sky">#FF4CC9F0</color>
+    <!-- the bright accents on a dark ground need dark text on them -->
+    <color name="on_accent_magenta">#FFFFFFFF</color>
+    <color name="on_accent_orange">#FF0B0D3A</color>
+    <color name="on_accent_sky">#FF0B0D3A</color>
+    <color name="ok">#FF98ED13</color>        <!-- lime -->
+    <color name="fire">#FFFF9A3C</color>      <!-- orange -->
+    <color name="waiting_amber">#FFFFD23F</color>
+    <color name="fault">#FFFF5468</color>     <!-- red -->
+    <color name="cyan">#FF07DFDD</color>
+
+    <color name="overlay_edge_off">#472B2E5E</color>
+    <color name="overlay_hand_off">#809296C2</color>
+
+    <bool name="light_bars">false</bool>
+</resources>

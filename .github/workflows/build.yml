@@ -1,0 +1,54 @@
+name: Build
+
+# The project has no Gradle wrapper, so the Gradle version is pinned here
+# instead. AGP 8.5.2 needs Gradle 8.7 or newer; 8.9 is what the app was
+# developed against.
+
+on:
+  # PR branches are covered by the pull_request trigger; listing them under
+  # push as well ran every build twice.
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      # Runs first: a compile error in the unit-test source set is cheaper to
+      # find here than at the end of a full release assemble.
+      - name: Unit tests
+        run: gradle --no-daemon testReleaseUnitTest
+
+      - name: Assemble release APK
+        run: gradle --no-daemon assembleRelease
+
+      # A fresh clone has no keystore, so this is debug-signed — installable
+      # for testing, but not an authenticated release build.
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GestureMouse-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
