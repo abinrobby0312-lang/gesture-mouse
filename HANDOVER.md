@@ -1,5 +1,77 @@
 # Handover — Bluetooth HID connection rework
 
+## Update 2026-09-18: tested on hardware — connects
+
+Pixel 10a (Android 17) → Windows PC "MARK-IV": **connected and working.**
+The sections below the line were written before any hardware test; where they
+disagree with this one, this one wins.
+
+**What the hardware showed:**
+
+- The in-app Pair button never found the PC — computers aren't discoverable
+  unless their Bluetooth page is open. The picker (`DevicePicker.kt`) and the
+  Pair button are **gone**; pairing happens from the computer, like any mouse.
+- **Windows opens the mouse connection itself** after pairing — before the
+  phone had even reported the bond. It refuses phone-initiated connects while
+  it's still setting up (`L2CAP connection rejected, reason=0x4`).
+- The phone's HID role holds **one** connection at a time
+  (`hidd_conn_initiate: connection already in progress`). Anything the app
+  does in the background during a pairing blocks the computer.
+- Every *old* pairing (MSI, a MacBook, US-K2MJX9RMK4) accepts the connection
+  and drops it ~5 s later: the cached-SDP case, as predicted. Re-pair fixes it.
+- Android delivers `STATE_DISCONNECTED` **twice** per failure; each copy used to
+  spend an attempt and queue its own retry (`attempt 3/2`).
+- The HID registration is dropped whenever the app is backgrounded.
+
+**What the code does now (`HidMouse.kt`):**
+
+- Auto-connect targets **only the remembered host** (the last one that
+  actually connected). An interim version tried every paired computer; it held
+  the HID slot across Mark IV's pairing and was the reason the first real
+  pairing failed. Don't bring it back.
+- A `pairing` flag stands auto-connect down from `BOND_BONDING` until the bond
+  resolves — the pairing prompt pauses the activity, and the `onResume` after
+  it used to launch a competing connection.
+- After a new bond the host gets `HOST_FIRST_MS` (10 s) to connect; only then
+  does the phone ask.
+- An incoming connection cancels any attempt of ours; abandoned attempts are
+  withdrawn with `disconnect()` so the slot is actually freed.
+- Duplicate failures are ignored (`awaiting` flag). Computers that exhaust
+  their attempts are skipped until the app is reopened (`refused`).
+- `forgetBond` (reflection `removeBond`) is removed; the help dialog tells the
+  user to remove stale pairings on both sides instead.
+
+**UI (`MainActivity.kt`):** the status strip only reports (green *Connected
+to X* / amber *Connecting…* / grey *Not connected — tap to connect*). Tapping it
+shows the pairing steps, **Make visible**, and a link to phone Bluetooth
+settings; for a stale pairing it names the computer and says to re-pair.
+
+**The QoS question below is settled for Windows:** the refusals happen at L2CAP
+connect, before QoS is negotiated, and `null` QoS connects fine. Still untested
+on macOS.
+
+**Distribution (shared as an APK across brands):**
+
+- Share APKs **built on the machine with `keystore/gesturemouse-release.jks`**
+  (`CN=Gesture Mouse`, SHA-256 `72f3cefe…c584d3`). CI output is debug-signed
+  with a throwaway key; anyone who installs it can't update to a real build
+  without uninstalling. Back the keystore up — losing it ends updates.
+- `minSdk 28` is a hard floor (the HID device API is Android 9+). Native libs
+  ship for `arm64-v8a` + `armeabi-v7a`, which covers phones; x86 is left out.
+- Handled for other people's phones: HID role missing or held by another
+  keyboard/mouse app (Android allows one) → explanatory dialog; Bluetooth
+  toggled while open → picked up live; Bluetooth permission permanently
+  denied → dialog links to app settings.
+- Bump `versionCode` for every APK handed out.
+
+**Still untested:** reconnect-on-reopen against the now-remembered MARK-IV,
+drop-and-recover, macOS, other phone brands, and the test-plan regression pass
+(trackpad/Air).
+
+---
+
+*Original handover, pre-hardware:*
+
 For picking this up in a new session **on the machine with the phone attached**.
 Everything here was written in a cloud container with no Android SDK and no
 route to a USB device, so nothing in it has run on real hardware yet. That is
@@ -8,7 +80,7 @@ the whole reason this file exists.
 - **Branch:** `claude/gesture-mouse-apk-build-18aria`
 - **PR:** https://github.com/abinrobby0312-lang/gesture-mouse/pull/2 (draft)
 - **Repo:** `abinrobby0312-lang/gesture-mouse`
-- **Version:** `versionCode 3`, `versionName 1.2.0`
+- **Version:** `versionCode 4`, `versionName 1.3.0` (was 3 / 1.2.0 before the hardware session)
 
 ## What changed and why
 

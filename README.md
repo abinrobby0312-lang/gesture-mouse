@@ -56,33 +56,47 @@ camera is only requested after you've been told what it's for.
 
 ## Connect
 
-1. Open the app and grant Bluetooth + Camera when asked.
-2. The status strip turns amber: *"Ready — pair Gesture Mouse from your computer"*.
-3. Tap **Pair**. The app scans and lists nearby computers.
-4. Tap yours. The app bonds and connects the mouse in one step — confirm the
-   matching code on both screens.
-5. Status turns teal. The cursor now answers to the phone.
+Pair it the way you'd pair any Bluetooth mouse — from the computer.
 
-After the first time it reconnects on its own whenever you open the app, and
+1. Open the app, grant Bluetooth + Camera, and **keep it on screen**.
+2. On the computer: Bluetooth settings → **Add device** → Bluetooth.
+3. Pick the phone (its Bluetooth name, e.g. *"Abin's Pixel"*) and confirm the
+   code on both screens.
+4. The computer connects the mouse on its own and the status strip turns
+   green: *Connected to …*.
+
+After that, just open the app: it reconnects to that computer by itself, and
 again if the link drops while it's running.
 
-Connecting is retried rather than attempted once: `connect()` is a request, and
-a host can accept it and then drop the link a second later. The app makes up to
-four attempts with a widening gap between them, shows which one it's on, and
-stops with a reason instead of sitting on *Ready* forever.
+The status strip only reports. Tap it for these steps, a **Make visible**
+button (for when the computer can't find the phone) and a shortcut to the
+phone's Bluetooth settings.
 
-### Pair from the app, not from the computer
+### Why the app has to be open while pairing
 
-This matters more than it looks. A host reads a device's service list **once**,
-while bonding, and caches it forever after. If the phone was already paired to
-that computer for file transfer or audio, the cached list contains no mouse and
-the host will never route pointer input to it — the connection reaches
-CONNECTING and then times out.
+A host reads a device's service list **once**, while bonding, and caches it
+forever after. Pair while the app is closed and the cached list has no mouse
+in it: the computer accepts the connection and drops it a few seconds later,
+every time. The strip then says the computer *is paired but won't accept the
+mouse* — remove the pairing on both sides and pair again with the app open.
 
-If a computer was paired before this app existed, **remove the pairing on both
-sides first**, then pair through the app's own Pair button with the status strip
-showing *Ready*. That guarantees the HID service is advertising at the moment
-the host takes its snapshot.
+The mouse service also only exists while the app is in the foreground; Android
+drops it when the app is backgrounded and the app re-registers it on return.
+
+### How connecting works
+
+- **New pairing:** the computer opens the mouse connection itself (Windows
+  does so before the phone has even reported the bond). The phone only asks
+  if nothing has arrived after 10 s — Windows refuses phone-initiated
+  connections while it is still setting the device up.
+- **Reopening the app / dropped link:** reconnects to the last computer the
+  mouse worked with. Up to four attempts with a widening gap, then a reason.
+- **Never:** trying every paired computer. The phone has one HID connection
+  slot; old pairings that refuse the mouse hold it for most of a minute, and
+  doing that across a new pairing is exactly what stopped it connecting.
+- While a pairing is in progress, reconnecting stays out of its way — the
+  pairing prompt pauses the app, and the resume after it must not start a
+  competing connection.
 
 ### The computer's name, not the app's
 
@@ -209,9 +223,8 @@ drag the cursor with them.
 ```
 app/src/main/java/com/gesturemouse/
   HidMouse.kt          Bluetooth HID mouse — descriptor, reports, connection
-  DevicePicker.kt      scan, bond and connect while HID is advertising
   GestureEngine.kt     hand landmarks -> mouse intents (pure logic, unit-tested)
-  MainActivity.kt      tabs, permissions, pairing
+  MainActivity.kt      tabs, permissions, status strip + connect help
   TrackpadFragment.kt  touch tab
   TrackpadSurface.kt   the touch surface itself
   AirFragment.kt       camera + MediaPipe, feeds GestureEngine

@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
             tab.text = getString(if (pos == 0) R.string.tab_trackpad else R.string.tab_air)
         }.attach()
 
-        b.pairButton.setOnClickListener { onPairPressed() }
+        b.statusStrip.setOnClickListener { showConnectHelp() }
         b.helpButton.setOnClickListener { TutorialDialog.show(supportFragmentManager) }
 
         android.util.Log.i(HidMouse.TAG, "MainActivity.onCreate")
@@ -87,7 +87,6 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             wanted += Manifest.permission.BLUETOOTH_CONNECT
             wanted += Manifest.permission.BLUETOOTH_ADVERTISE
-            wanted += Manifest.permission.BLUETOOTH_SCAN
         }
         val missing = wanted.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
@@ -121,103 +120,174 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var lastState = HidMouse.State.REGISTERING
+    private var lastMsg = ""
+
+    /**
+     * The strip only reports. Pairing happens in the computer's Bluetooth
+     * settings like any other mouse; tapping the strip says how.
+     */
     private fun showState(state: HidMouse.State, msg: String) {
+        lastState = state
+        lastMsg = msg
         val color = ContextCompat.getColor(this, when (state) {
             HidMouse.State.CONNECTED -> R.color.track
-            HidMouse.State.WAITING, HidMouse.State.REGISTERING,
-            HidMouse.State.CONNECTING -> R.color.fire
+            HidMouse.State.REGISTERING, HidMouse.State.CONNECTING -> R.color.fire
+            HidMouse.State.WAITING -> R.color.dim
             else -> R.color.fault
         })
         (b.statusDot.background as? GradientDrawable)?.setColor(color)
         b.statusText.text = when (state) {
             HidMouse.State.CONNECTED -> "Connected to $msg"
-            else -> msg
+            HidMouse.State.REGISTERING, HidMouse.State.CONNECTING -> msg
+            HidMouse.State.WAITING, HidMouse.State.STALE_BOND -> "Not connected — tap to connect"
+            else -> "$msg — tap for help"
         }
-        b.pairButton.text = if (state == HidMouse.State.CONNECTED) "Hosts" else "Pair"
-
-        if (state == HidMouse.State.STALE_BOND) offerRepair() else repairOffered = false
     }
 
-    /** Guard so the recovery dialog doesn't stack up on repeated reports. */
-    private var repairOffered = false
+    private fun phoneName(): String {
+        val a = (getSystemService(BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter
+        return try { a?.name } catch (_: SecurityException) { null } ?: "this phone"
+    }
 
     /**
-     * A host that is bonded and still refuses the mouse has cached a service
-     * list from a time when this app wasn't advertising one. A host reads that
-     * list once, when it bonds, so nothing the phone does afterwards changes
-     * it — the pairing has to be made again from scratch.
-     *
-     * The app can only drop its own half. The host keeps its own record, and if
-     * it isn't cleared there too the stale list survives, so the instructions
-     * say so rather than implying one tap is the whole job.
+     * How to connect, in the terms of an ordinary Bluetooth mouse. The one
+     * thing that differs from pairing any other mouse is that this app has to
+     * be open while the computer pairs, so the phone is advertising a mouse at
+     * the moment the computer reads its service list — a list it reads once
+     * and caches for good.
      */
-    private fun offerRepair() {
-        if (repairOffered || isFinishing) return
-        val m = mouse ?: return
-        val device = m.lastFailedHost ?: return
-        repairOffered = true
+    private fun showConnectHelp() {
+        if (isFinishing) return
+        if (mouse == null) {
+            if (bluetoothPermissionDenied()) showPermissionHelp() else requestNeededPermissions()
+            return
+        }
+        when (lastState) {
+            HidMouse.State.UNSUPPORTED -> { showUnsupportedHelp(); return }
+            HidMouse.State.OFF -> { showBluetoothOffHelp(); return }
+            else -> {}
+        }
+        if (lastState == HidMouse.State.CONNECTED) {
+            AlertDialog.Builder(this)
+                .setTitle("Connected to $lastMsg")
+                .setMessage(
+                    "The phone is working as a mouse. To switch computers, disconnect " +
+                            "it from $lastMsg's Bluetooth settings, then connect from the other one."
+                )
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
 
-        val name = try { device.name } catch (e: SecurityException) { null } ?: device.address
+        val phone = phoneName()
+        val stale = mouse?.lastFailedHost?.let {
+            val name = try { it.name } catch (_: SecurityException) { null } ?: it.address
+            "$name is already paired, but it was paired while this app wasn't running, " +
+                    "so it doesn't know the phone can be a mouse. Remove \"$phone\" from " +
+                    "$name's Bluetooth settings (and $name from this phone's), then pair again:\n\n"
+        } ?: ""
+
         AlertDialog.Builder(this)
-            .setTitle("$name won't accept the mouse")
+            .setTitle("Connect to your computer")
             .setMessage(
-                "It's paired, but from before the mouse existed, so it never " +
-                        "learned this phone can be one.\n\n" +
-                        "Remove the pairing on both sides, then pair again from here."
+                stale +
+                        "Pair it like any Bluetooth mouse:\n\n" +
+                        "1.  Keep this app open.\n" +
+                        "2.  On the computer, open Bluetooth settings → Add device.\n" +
+                        "3.  Pick \"$phone\" and confirm the code on both screens.\n\n" +
+                        "The mouse connects on its own. After that, just open this app " +
+                        "and it reconnects.\n\n" +
+                        "Computer can't see the phone? Tap Make visible."
             )
-            .setPositiveButton("Unpair and retry") { _, _ ->
-                val dropped = m.forgetBond(device)
-                if (dropped) {
-                    AlertDialog.Builder(this)
-                        .setTitle("Unpaired")
-                        .setMessage(
-                            "Now remove this phone from $name's Bluetooth settings too, " +
-                                    "then tap Pair."
-                        )
-                        .setPositiveButton("Pair") { _, _ -> onPairPressed() }
-                        .setNegativeButton("Later", null)
-                        .show()
-                } else {
-                    AlertDialog.Builder(this)
-                        .setTitle("Unpair it manually")
-                        .setMessage(
-                            "This phone wouldn't let the app remove the pairing. Open " +
-                                    "Bluetooth settings, forget $name there and on $name " +
-                                    "itself, then come back and tap Pair."
-                        )
-                        .setPositiveButton("Bluetooth settings") { _, _ ->
-                            try {
-                                startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS))
-                            } catch (_: Exception) {
-                            }
-                        }
-                        .setNegativeButton("OK", null)
-                        .show()
+            .setPositiveButton("Make visible") { _, _ ->
+                try {
+                    startActivity(
+                        Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
+                            .putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
+                    )
+                } catch (_: Exception) {
                 }
             }
-            .setNegativeButton("Not now", null)
-            .setOnDismissListener { repairOffered = false }
+            .setNeutralButton("Phone Bluetooth") { _, _ ->
+                try {
+                    startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS))
+                } catch (_: Exception) {
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun bluetoothPermissionDenied() =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) !=
+                PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Once the system has stopped showing the prompt ("don't ask again", or two
+     * denials on Android 11+), asking again does nothing visible — the only
+     * way back is the app's own settings page.
+     */
+    private fun showPermissionHelp() {
+        AlertDialog.Builder(this)
+            .setTitle("Bluetooth permission needed")
+            .setMessage(
+                "Gesture Mouse needs the Nearby devices permission to act as a " +
+                        "Bluetooth mouse. Allow it in the app's settings, then come back."
+            )
+            .setPositiveButton("Open settings") { _, _ ->
+                try {
+                    startActivity(
+                        Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                            .setData(android.net.Uri.fromParts("package", packageName, null))
+                    )
+                } catch (_: Exception) {
+                }
+            }
+            .setNeutralButton("Ask again") { _, _ -> requestNeededPermissions() }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showBluetoothOffHelp() {
+        AlertDialog.Builder(this)
+            .setTitle("Bluetooth is off")
+            .setMessage("Turn Bluetooth on and the mouse starts by itself.")
+            .setPositiveButton("Turn on") { _, _ ->
+                try {
+                    @Suppress("DEPRECATION")
+                    startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+                } catch (_: Exception) {
+                    try {
+                        startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS))
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+            .setNegativeButton("Close", null)
             .show()
     }
 
     /**
-     * Scans, pairs and connects in one place. Pairing has to happen while the
-     * HID service is advertising — a host reads a device's service list once,
-     * when bonding, so anything paired beforehand has no mouse in it.
+     * Acting as a Bluetooth mouse needs the phone's HID device role. It's part
+     * of Android since 9, but manufacturers can leave it out, and only one app
+     * at a time can hold it — the second cause is far more common in practice.
      */
-    private fun onPairPressed() {
-        val m = mouse ?: run {
-            requestNeededPermissions()
-            return
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            permissionLauncher.launch(arrayOf(Manifest.permission.BLUETOOTH_SCAN))
-            return
-        }
-        DevicePicker(this, m).show()
+    private fun showUnsupportedHelp() {
+        AlertDialog.Builder(this)
+            .setTitle("The mouse couldn't start")
+            .setMessage(
+                "$lastMsg.\n\n" +
+                        "•  Another app may already be using this phone as a Bluetooth " +
+                        "keyboard or mouse. Close it (or force-stop it), then reopen " +
+                        "Gesture Mouse.\n\n" +
+                        "•  Otherwise, this phone's maker may have left out the Bluetooth " +
+                        "feature that lets a phone act as a mouse. Restarting the phone " +
+                        "is worth one try; if it still fails, this phone can't be used."
+            )
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     override fun onDestroy() {

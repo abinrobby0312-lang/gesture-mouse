@@ -2,15 +2,20 @@ package com.gesturemouse
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothClass
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHidDevice
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.core.content.ContextCompat
 import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.sign
@@ -37,6 +42,20 @@ import kotlin.math.sign
  * checks the return value, arms a timeout, retries with backoff, and stops with
  * a diagnosis rather than in silence. See [onAttemptFailed] for what "gave up"
  * reports and why.
+ *
+ * Who connects, and when:
+ * - First time: the user pairs from the computer's Bluetooth settings while
+ *   the app is open. The computer opens the mouse connection itself; the
+ *   phone only asks if it hasn't after [HOST_FIRST_MS] ([connectAfterBond]).
+ * - After that: opening the app reconnects to the remembered host
+ *   ([autoReconnect]), and so does a dropped link.
+ * - Never: guessing across other paired computers. Old pairings refuse the
+ *   mouse, and working through them holds the phone's single HID slot —
+ *   which is exactly what stopped the first real pairing from connecting.
+ *
+ * The HID registration only lives while the app is in the foreground; the
+ * stack drops it when the app is backgrounded, and [ensureStarted] brings it
+ * back on the next resume.
  */
 @SuppressLint("MissingPermission")
 class HidMouse(private val context: Context) {
@@ -68,14 +87,14 @@ class HidMouse(private val context: Context) {
         private val BACKOFF_MS = longArrayOf(1_000L, 2_000L, 4_000L)
 
         /**
-         * Pause between "bond completed" and the first connect.
-         *
-         * BOND_BONDED fires when the pairing exchange finishes, not when the
-         * stack has finished writing out the service records. Connecting on
-         * that instant is the single most reliable way to get a connect that
-         * returns true and then quietly dies.
+         * After a fresh bond, how long the computer gets to open the mouse
+         * connection itself before the phone asks. Windows does this on its
+         * own — on a Pixel 10a / Windows host it connected before the phone
+         * had even reported the bond — and refused phone-initiated connects
+         * made while it was still setting up ("L2CAP connection rejected,
+         * reason=0x4", no resources).
          */
-        private const val POST_BOND_SETTLE_MS = 1_200L
+        private const val HOST_FIRST_MS = 10_000L
 
         private const val PREFS = "gesturemouse"
         private const val KEY_LAST_HOST = "lastHost"
@@ -237,6 +256,12 @@ class HidMouse(private val context: Context) {
      */
     fun ensureStarted() {
         if (host != null) return
+        if (adapter?.isEnabled != true) {
+            // start() owns the "no adapter" / "off" reporting and the receiver
+            // that notices Bluetooth coming back
+            start()
+            return
+        }
         val p = proxy
         when {
             registered -> {
@@ -245,6 +270,9 @@ class HidMouse(private val context: Context) {
                 // the only connect() in the whole class lived in the
                 // registration callback, and that fires once per registration.
                 Log.i(TAG, "ensureStarted: registered with no host — trying to reconnect")
+                // reopening the app is the user asking again, so computers that
+                // refused earlier get another go
+                if (pendingTarget == null) refused.clear()
                 autoReconnect("resume")
             }
             p != null -> {
@@ -265,16 +293,29 @@ class HidMouse(private val context: Context) {
             report(State.UNSUPPORTED, "No Bluetooth adapter")
             return
         }
+        // before the enabled check: with Bluetooth off, this is what hears it
+        // come back on
+        if (!bondReceiverRegistered) {
+            ContextCompat.registerReceiver(
+                context, bondReceiver,
+                IntentFilter().apply {
+                    addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+                    addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+                },
+                ContextCompat.RECEIVER_EXPORTED
+            )
+            bondReceiverRegistered = true
+        }
         if (!a.isEnabled) {
             Log.w(TAG, "adapter present but disabled")
-            report(State.OFF, "Bluetooth is off — turn it on")
+            report(State.OFF, "Bluetooth is off")
             return
         }
         if (proxyPending) {
             Log.i(TAG, "start: a proxy request is already in flight — not asking twice")
             return
         }
-        report(State.REGISTERING, "Registering HID service…")
+        report(State.REGISTERING, "Starting…")
         proxyPending = true
         val asked = try {
             a.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
@@ -301,7 +342,7 @@ class HidMouse(private val context: Context) {
                         proxy = null
                         host = null
                         registered = false
-                        main.post { cancelAttempts() }
+                        main.post { stopTrying() }
                         report(State.OFF, "HID service disconnected")
                     }
                 }
@@ -346,7 +387,7 @@ class HidMouse(private val context: Context) {
                 Log.i(TAG, "onAppStatusChanged registered=$registered plugged=${pluggedDevice?.address}")
                 this@HidMouse.registered = registered
                 if (registered) {
-                    report(State.WAITING, "Ready — pair \"Gesture Mouse\" from your computer")
+                    report(State.WAITING, "Not connected")
                     val known = pluggedDevice ?: proxy?.getDevicesMatchingConnectionStates(
                         intArrayOf(BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_CONNECTING)
                     )?.firstOrNull()
@@ -355,7 +396,7 @@ class HidMouse(private val context: Context) {
                     }
                 } else {
                     host = null
-                    main.post { cancelAttempts() }
+                    main.post { stopTrying() }
                     report(State.OFF, "HID app unregistered")
                 }
             }
@@ -370,10 +411,18 @@ class HidMouse(private val context: Context) {
                         unplugged = false
                         lastFailedHost = null
                         if (device != null) remember(device)
-                        main.post { cancelAttempts() }
+                        main.post { stopTrying() }
                         report(State.CONNECTED, nameOf(device))
                     }
                     BluetoothProfile.STATE_CONNECTING -> {
+                        // a computer opening the connection itself. The HID
+                        // role holds one connection at a time, so an attempt
+                        // of ours to some other device would get it refused.
+                        val ours = pendingTarget
+                        if (device != null && ours != null && ours.address != device.address) {
+                            Log.i(TAG, "incoming from ${device.address} — dropping our attempt on ${ours.address}")
+                            main.post { stopTrying() }
+                        }
                         report(State.CONNECTING, "Connecting to ${nameOf(device)}…")
                     }
                     BluetoothProfile.STATE_DISCONNECTED -> {
@@ -414,7 +463,7 @@ class HidMouse(private val context: Context) {
                 if (device == host) host = null
                 bootProtocol = false
                 unplugged = true
-                main.post { cancelAttempts() }
+                main.post { stopTrying() }
                 report(State.WAITING, "Host disconnected the mouse")
             }
             })
@@ -425,11 +474,17 @@ class HidMouse(private val context: Context) {
         } ?: false
 
         Log.i(TAG, "registerApp returned $ok")
-        if (!ok) report(State.UNSUPPORTED, "This phone refused the HID registration")
+        // Android lets exactly one app hold the HID device role. False here is
+        // usually another keyboard/mouse app holding it, not a missing feature.
+        if (!ok) report(State.UNSUPPORTED, "Couldn't start the mouse service")
     }
 
     fun stop() {
-        main.post { cancelAttempts() }
+        main.post { stopTrying() }
+        if (bondReceiverRegistered) {
+            try { context.unregisterReceiver(bondReceiver) } catch (_: Exception) {}
+            bondReceiverRegistered = false
+        }
         try {
             releaseButtons()
             proxy?.unregisterApp()
@@ -448,29 +503,69 @@ class HidMouse(private val context: Context) {
     // connecting
     // ------------------------------------------------------------------
 
-    /** Devices already bonded to this phone, so the UI can offer a reconnect. */
-    fun bondedHosts(): List<BluetoothDevice> =
+    private fun bondedHosts(): List<BluetoothDevice> =
         try { adapter?.bondedDevices?.toList().orEmpty() } catch (_: SecurityException) { emptyList() }
 
+    /** An attempt is outstanding and hasn't been counted as failed yet. */
+    private var awaiting = false
+
     /**
-     * Connect to [device], retrying as needed. This is the only way in — a bare
-     * `connect()` is a request whose failure is invisible.
+     * A computer has just paired with us. Give it [HOST_FIRST_MS] to open the
+     * mouse connection itself, then ask from this end. Nothing else may use
+     * the HID slot in that window — [pairing] holds auto-connect off.
      */
-    fun connectTo(device: BluetoothDevice) {
-        main.post { startAttempts(device, "user") }
+    private fun connectAfterBond(device: BluetoothDevice) {
+        refused.remove(device.address)
+        stopTrying()
+        pairing = true
+        Log.i(TAG, "connectAfterBond ${device.address}: leaving it to the host for ${HOST_FIRST_MS}ms")
+        report(State.CONNECTING, "Paired — connecting…")
+        main.removeCallbacks(postBondRunnable)
+        postBondTarget = device
+        main.postDelayed(postBondRunnable, HOST_FIRST_MS)
+    }
+
+    private var postBondTarget: BluetoothDevice? = null
+    private val postBondRunnable = Runnable {
+        pairing = false
+        val d = postBondTarget ?: return@Runnable
+        postBondTarget = null
+        if (host != null) return@Runnable
+        stopTrying()
+        startAttempts(d, "post-bond")
     }
 
     /**
-     * Connect once the stack has finished settling after a fresh bond.
-     *
-     * See [POST_BOND_SETTLE_MS] — connecting the instant BOND_BONDED arrives is
-     * how you get a connect that reports success and then dies quietly.
+     * A pairing is under way or has just finished. Auto-connect stays out of
+     * the way until it resolves: the pairing prompt pauses the activity, and
+     * the onResume after it used to launch a reconnect straight across the
+     * pairing, holding the HID slot while the new computer tried to get in.
      */
-    fun connectAfterBond(device: BluetoothDevice) {
-        Log.i(TAG, "connectAfterBond ${device.address} in ${POST_BOND_SETTLE_MS}ms")
-        report(State.CONNECTING, "Pairing done — connecting…")
-        main.postDelayed({ startAttempts(device, "post-bond") }, POST_BOND_SETTLE_MS)
+    private var pairing = false
+
+    /** Something is pairing with the phone: free the HID slot for it. */
+    private fun onBonding(device: BluetoothDevice) {
+        Log.i(TAG, "${device.address} is pairing — standing down auto-connect")
+        pairing = true
+        stopTrying()
     }
+
+    /**
+     * A pairing that isn't ours to follow up: it failed, was cancelled, or
+     * bonded something that isn't a computer. Auto-connect may resume.
+     */
+    private fun onBondFailed(device: BluetoothDevice) {
+        if (postBondTarget != null) return
+        Log.i(TAG, "${device.address} pairing ended, nothing to connect")
+        pairing = false
+    }
+
+    /**
+     * Devices that ran out of attempts this session. Auto-connect skips them,
+     * because retrying a computer that refuses the mouse does nothing but hold
+     * the HID slot while a working one is trying to get in.
+     */
+    private val refused = mutableSetOf<String>()
 
     private val timeoutRunnable = Runnable { onAttemptFailed("timed out") }
     private val retryRunnable = Runnable { fireAttempt() }
@@ -515,6 +610,7 @@ class HidMouse(private val context: Context) {
         val asked = try { p.connect(d) } catch (e: Exception) {
             Log.e(TAG, "connect threw", e); false
         }
+        awaiting = true
         Log.i(TAG, "connect attempt $attempt/$MAX_ATTEMPTS to ${d.address} returned $asked")
         report(State.CONNECTING, "Connecting to ${nameOf(d)}… ($attempt/$MAX_ATTEMPTS)")
 
@@ -528,6 +624,13 @@ class HidMouse(private val context: Context) {
     }
 
     private fun onAttemptFailed(why: String) {
+        // the stack delivers DISCONNECTED twice for one failed link; without
+        // this each copy spent an attempt and queued its own retry
+        if (!awaiting) {
+            Log.i(TAG, "ignoring duplicate failure ($why)")
+            return
+        }
+        awaiting = false
         main.removeCallbacks(timeoutRunnable)
         if (host != null) { cancelAttempts(); return }
         val d = pendingTarget ?: return
@@ -548,21 +651,42 @@ class HidMouse(private val context: Context) {
         val bonded = try { d.bondState == BluetoothDevice.BOND_BONDED } catch (_: Exception) { false }
         pendingTarget = null
         lastFailedHost = if (bonded) d else null
+        refused += d.address
+        release(d)
+
         if (bonded) {
             Log.w(TAG, "giving up on ${d.address} — bonded but won't accept HID (stale service list?)")
             report(
                 State.STALE_BOND,
-                "${nameOf(d)} is paired but won't accept the mouse — unpair and pair again"
+                "${nameOf(d)} is paired but won't accept the mouse"
             )
         } else {
-            report(State.WAITING, "Couldn't connect to ${nameOf(d)} — tap Pair to try again")
+            report(State.WAITING, "Not connected")
         }
+    }
+
+    /** Abandon the current target and withdraw its request from the stack. */
+    private fun stopTrying() {
+        pendingTarget?.let { release(it) }
+        cancelAttempts()
+    }
+
+    /**
+     * Withdraw an outgoing request that may still be in flight. Dropping our
+     * own bookkeeping isn't enough: the stack keeps working on it, and while
+     * it does the single HID slot is busy — the next connect, ours or a
+     * computer's, is refused with "connection already in progress".
+     */
+    private fun release(d: BluetoothDevice) {
+        if (host?.address == d.address) return
+        try { proxy?.disconnect(d) } catch (_: Exception) {}
     }
 
     private fun cancelAttempts() {
         main.removeCallbacks(timeoutRunnable)
         main.removeCallbacks(retryRunnable)
         pendingTarget = null
+        awaiting = false
         attempt = 0
         deferrals = 0
     }
@@ -581,17 +705,29 @@ class HidMouse(private val context: Context) {
             autoReconnect("dropped")
             return
         }
-        report(State.WAITING, "Disconnected — waiting for a host")
+        // a late event for a device we've already moved on from; the attempt
+        // in progress owns the status strip
+        if (target != null || host != null) return
+        report(State.WAITING, "Not connected")
     }
 
     /**
-     * Get back to the host we last used, if it's still bonded.
+     * Get back to the computer the mouse last worked with, if it's still bonded.
      *
-     * Deliberately only the remembered one. Guessing from the bonded list means
-     * spending the whole retry budget asking a pair of earbuds to be a computer.
+     * Deliberately only that one. Trying every paired computer looked
+     * friendlier, but on real hardware every one of them was an old pairing
+     * that refuses the mouse, and working through them held the phone's single
+     * HID slot for most of a minute — including right across a new computer's
+     * pairing, which is how the first real attempt to connect failed. A
+     * computer that has never taken the mouse connects on pairing instead
+     * ([connectAfterBond]).
      */
     private fun autoReconnect(why: String) {
         if (host != null || pendingTarget != null) return
+        if (pairing) {
+            Log.i(TAG, "autoReconnect($why): a pairing is in progress, staying out of its way")
+            return
+        }
         if (unplugged) {
             Log.i(TAG, "autoReconnect($why): host unplugged us, staying put")
             return
@@ -599,40 +735,90 @@ class HidMouse(private val context: Context) {
         val last = prefs.getString(KEY_LAST_HOST, null)
         if (last == null) {
             Log.i(TAG, "autoReconnect($why): no remembered host")
+            report(State.WAITING, "Not connected")
             return
         }
         val d = bondedHosts().firstOrNull { it.address == last }
         if (d == null) {
             Log.i(TAG, "autoReconnect($why): remembered host $last is no longer bonded")
             prefs.edit().remove(KEY_LAST_HOST).apply()
+            report(State.WAITING, "Not connected")
+            return
+        }
+        if (d.address in refused) {
+            Log.i(TAG, "autoReconnect($why): ${d.address} refused earlier this session")
             return
         }
         Log.i(TAG, "autoReconnect($why) -> ${d.address}")
         startAttempts(d, "auto:$why")
     }
 
-    private fun remember(device: BluetoothDevice) {
-        try { prefs.edit().putString(KEY_LAST_HOST, device.address).apply() } catch (_: Exception) {}
-    }
+    private fun isComputer(d: BluetoothDevice): Boolean = try {
+        d.bluetoothClass?.majorDeviceClass == BluetoothClass.Device.Major.COMPUTER
+    } catch (_: Exception) { false }
 
     /**
-     * Drop the pairing so it can be made again with the HID service live.
-     *
-     * `removeBond` has never been public API, so this is reflection and is
-     * allowed to fail; when it does the user has to clear the pairing in system
-     * Bluetooth settings themselves, which is what the UI falls back to telling
-     * them.
+     * A computer that pairs with the phone while the app is open normally
+     * opens the mouse connection itself. This is the fallback for one that
+     * doesn't: once the bond lands, ask for the connection from this end.
      */
-    fun forgetBond(device: BluetoothDevice): Boolean = try {
-        val removed = device.javaClass.getMethod("removeBond").invoke(device) as? Boolean ?: false
-        Log.i(TAG, "removeBond(${device.address}) returned $removed")
-        if (removed && prefs.getString(KEY_LAST_HOST, null) == device.address) {
-            prefs.edit().remove(KEY_LAST_HOST).apply()
+    private val bondReceiver = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, intent: Intent) {
+            if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                onAdapterState(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1))
+                return
+            }
+            @Suppress("DEPRECATION")
+            val d = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE) ?: return
+            val state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1)
+            Log.i(TAG, "bond state for ${d.address} = $state computer=${isComputer(d)}")
+            // the class isn't reliable mid-pairing, so only the final "is this
+            // a computer to connect to" decision looks at it
+            main.post {
+                when (state) {
+                    BluetoothDevice.BOND_BONDING -> onBonding(d)
+                    BluetoothDevice.BOND_BONDED -> when {
+                        // the usual case with Windows: it opens the mouse
+                        // connection before the phone has even reported the bond
+                        host != null -> {
+                            Log.i(TAG, "${d.address} bonded, already connected to ${host?.address}")
+                            pairing = false
+                        }
+                        isComputer(d) -> connectAfterBond(d)
+                        else -> onBondFailed(d)
+                    }
+                    BluetoothDevice.BOND_NONE -> onBondFailed(d)
+                }
+            }
         }
-        removed
-    } catch (e: Exception) {
-        Log.e(TAG, "removeBond is unavailable on this build", e)
-        false
+    }
+    private var bondReceiverRegistered = false
+
+    /**
+     * Bluetooth switched off or on while the app is open. Without this, turning
+     * Bluetooth on from the quick-settings shade left the app saying "off"
+     * until it was reopened.
+     */
+    private fun onAdapterState(state: Int) {
+        main.post {
+            when (state) {
+                BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_OFF -> {
+                    Log.i(TAG, "adapter going off")
+                    stopTrying()
+                    host = null
+                    registered = false
+                    report(State.OFF, "Bluetooth is off")
+                }
+                BluetoothAdapter.STATE_ON -> {
+                    Log.i(TAG, "adapter on — starting up")
+                    ensureStarted()
+                }
+            }
+        }
+    }
+
+    private fun remember(device: BluetoothDevice) {
+        try { prefs.edit().putString(KEY_LAST_HOST, device.address).apply() } catch (_: Exception) {}
     }
 
     // ------------------------------------------------------------------

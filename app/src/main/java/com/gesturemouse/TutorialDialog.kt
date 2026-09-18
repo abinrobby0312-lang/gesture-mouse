@@ -39,13 +39,13 @@ class TutorialDialog : DialogFragment() {
         Page(
             "Step 2 of 5",
             "Pair it first",
-            "Nothing works until the computer is connected.\n\n" +
-                "1.  Tap PAIR at the top\n" +
-                "2.  Pick your computer from the list\n" +
-                "3.  Confirm the matching code on both screens\n\n" +
-                "The dot turns red when you're connected. If it was paired before " +
-                "this app existed, remove it on the computer first and pair again " +
-                "from here."
+            "Pair it like any Bluetooth mouse.\n\n" +
+                "1.  Keep this app open\n" +
+                "2.  On the computer, open Bluetooth settings → Add device\n" +
+                "3.  Pick this phone and confirm the code on both screens\n\n" +
+                "The strip at the top shows when you're connected. After the first " +
+                "time, just open the app and it reconnects. Tap the strip any time " +
+                "for these steps."
         ),
         Page(
             "Step 3 of 5",
