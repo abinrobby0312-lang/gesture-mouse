@@ -59,3 +59,13 @@ create policy "anyone can sign up"        on public.signups        for insert to
 create policy "anyone can report"         on public.compat_reports for insert to anon with check (true);
 create policy "anyone can send a message" on public.feedback       for insert to anon with check (true);
 -- no select/update/delete policies exist, so with RLS on those are refused
+
+-- Supabase creates projects with an event-trigger helper, public.rls_auto_enable(),
+-- that the security advisor flags as callable over the API. It still fires on
+-- DDL without EXECUTE; this only removes direct calls.
+do $$ begin
+  if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.proname = 'rls_auto_enable') then
+    revoke execute on function public.rls_auto_enable() from anon, authenticated, public;
+  end if;
+end $$;

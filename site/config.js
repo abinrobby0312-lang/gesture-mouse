@@ -8,8 +8,9 @@ window.GM_CONFIG = {
 
   // Supabase project for sign-ups, compatibility reports and messages (see
   // site/supabase/schema.sql). Leave empty and the forms say "opening soon"
-  // rather than failing. The anon key is safe to publish: the schema lets it
-  // insert rows and nothing else.
-  supabaseUrl: "",
-  supabaseAnonKey: "",
+  // rather than failing. The publishable key is safe to publish: the schema
+  // lets it insert rows and nothing else (checked: reads, updates, deletes and
+  // setting "reviewed" are all refused).
+  supabaseUrl: "https://ruhwscwgveyzizpruxyf.supabase.co",
+  supabaseAnonKey: "sb_publishable_DJY6ZHam2TEsLjbjf19M-w_fqKVSfqu",
 };
