@@ -32,9 +32,39 @@
     }
     const mb = rel.size ? ` · ${(rel.size / 1048576).toFixed(0)} MB` : "";
     box.innerHTML = `
-      <a class="btn primary" href="${escapeHtml(rel.url)}">Download for Android</a>
+      <a class="btn primary" href="${escapeHtml(rel.url)}" data-dl>Download for Android</a>
       <div class="meta">Version ${escapeHtml(rel.version)}${mb} · Android 9 or newer
         ${rel.notes ? `· <a href="${escapeHtml(rel.notes)}">What's new</a>` : ""}</div>`;
+    $("[data-dl]", box).addEventListener("click", () => countDownload(rel.version));
+  }
+
+  // One anonymous row per tap: version, the ?src= tag of the link the visitor
+  // came from, and phone vs computer. GitHub's own counter on the release
+  // asset has the total; this adds where downloads come from. keepalive lets
+  // the request finish while the tap navigates away to the file.
+  const source = (() => {
+    const s = new URLSearchParams(location.search).get("src");
+    return s ? String(s).trim().slice(0, 40) || "site" : "site";
+  })();
+  function countDownload(version) {
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) return;
+    try {
+      fetch(`${cfg.supabaseUrl}/rest/v1/download_clicks`, {
+        method: "POST",
+        keepalive: true,
+        headers: {
+          apikey: cfg.supabaseAnonKey,
+          Authorization: `Bearer ${cfg.supabaseAnonKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          version: String(version).slice(0, 20),
+          source,
+          platform: isAndroid ? "android" : isIOS ? "other" : "desktop",
+        }),
+      }).catch(() => {});
+    } catch (_) { /* counting must never block the download */ }
   }
 
   // ------------------------------------------------------------------- forms
@@ -100,7 +130,7 @@
     const email = clip(fd.get("email"), 254).toLowerCase();
     if (!emailOk(email)) throw new Error("That email address doesn't look right.");
     if (!fd.get("consent")) throw new Error("Please tick the box so we're allowed to email you.");
-    return { email, consent: true, source: clip(new URLSearchParams(location.search).get("src") || "site", 40) };
+    return { email, consent: true, source };
   }, { ok: "You're on the list — we'll email you when there's something new.",
        duplicate: "You're already on the list." });
 
