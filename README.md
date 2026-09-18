@@ -10,8 +10,10 @@ macOS, Linux, iPadOS, Android TV — all work, and none of them know this app
 exists.
 
 **Everything runs on the phone.** Hand tracking is on-device MediaPipe; no
-video, no landmarks and no usage data leave the handset, and the app requests
-no internet permission at all.
+video, no landmarks and no usage data leave the handset, and the app has no
+internet permission. (MediaPipe ships Google's usage-statistics uploader; the
+manifest removes both its INTERNET permission and its upload backend, so its
+events are discarded on the phone — see `AndroidManifest.xml`.)
 
 ## Brand
 
@@ -30,9 +32,11 @@ for connected, orange for waiting.
 
 ## Install
 
-Download `GestureMouse.apk`, copy it to the phone, and tap it. Android will ask
-you to allow installing from this source — that prompt is expected for any app
-that doesn't come from a store.
+Get it from **[the Gesture Mouse site](https://abinrobby0312-lang.github.io/gesture-mouse/)**
+on your phone, or download `GestureMouse.apk` from the
+[latest release](https://github.com/abinrobby0312-lang/gesture-mouse/releases/latest).
+Android will ask you to allow installing from this source — that prompt is
+expected for any app that doesn't come from a store.
 
 If you have `adb`:
 

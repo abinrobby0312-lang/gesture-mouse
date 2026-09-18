@@ -38,6 +38,9 @@ class SettingsSheet : BottomSheetDialogFragment() {
         private const val KEY_TAB = "tab"
         const val CONTACT_EMAIL = "abinrobby0312@gmail.com"
 
+        /** The project site; see site/ in the repo. */
+        const val SITE_URL = "https://abinrobby0312-lang.github.io/gesture-mouse/"
+
         fun show(activity: MainActivity) {
             if (activity.supportFragmentManager.findFragmentByTag(TAG) == null) {
                 SettingsSheet().show(activity.supportFragmentManager, TAG)
@@ -207,6 +210,7 @@ class SettingsSheet : BottomSheetDialogFragment() {
             TutorialDialog.show(fm)
         }
         b.contactEmail.setOnClickListener { emailUs() }
+        b.reportCompat.setOnClickListener { openReportForm() }
         b.versionInfo.text = "Gesture Mouse ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" +
                 "${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}"
     }
@@ -329,6 +333,27 @@ class SettingsSheet : BottomSheetDialogFragment() {
             startActivity(Intent.createChooser(intent, "Email us"))
         } catch (_: ActivityNotFoundException) {
             copyAddress()
+        }
+    }
+
+    /**
+     * The site's compatibility form, with this phone's details filled in so
+     * the person only has to say how it went. It opens in the browser: the app
+     * itself still has no internet permission and sends nothing. Make, model
+     * and versions describe the hardware, not the person.
+     */
+    private fun openReportForm() {
+        val uri = Uri.parse(SITE_URL).buildUpon()
+            .appendPath("report.html")
+            .appendQueryParameter("phone_make", Build.MANUFACTURER.replaceFirstChar { it.uppercase() })
+            .appendQueryParameter("phone_model", Build.MODEL)
+            .appendQueryParameter("android_version", Build.VERSION.RELEASE)
+            .appendQueryParameter("app_version", BuildConfig.VERSION_NAME)
+            .build()
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, uri))
+        } catch (_: ActivityNotFoundException) {
+            toast("No browser found to open the form")
         }
     }
 

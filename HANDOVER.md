@@ -96,6 +96,16 @@ palettes rebuilt from the logo; **connected is now lime**, not red; the carbon
 weave background is gone (flat ground). Logo shows on the walkthrough's first
 page and in Settings → Help & contact, light/dark variant chosen by theme.
 
+**Distribution (1.7.0, first public build):** landing page in `site/`
+(deployed from the `gh-pages` branch to GitHub Pages), forms backed by a
+Supabase project defined in `site/supabase/schema.sql` (anonymous visitors can
+insert only), releases on GitHub Releases as `GestureMouse.apk`. The site only
+offers releases ≥ `minVersion` in `site/config.js`. **No INTERNET permission:**
+MediaPipe's datatransport telemetry added it; the manifest now removes it and
+unregisters the upload backend (verified on hardware: hand tracking works, no
+crash, no upload job scheduled). Settings → Help & contact has a "Report how it
+works on your phone" button that opens `report.html` prefilled.
+
 **Also verified:** reconnect on app launch to the remembered host (~1 s), and
 recovery from a dropped link.
 
@@ -114,7 +124,7 @@ the whole reason this file exists.
 - **Branch:** `claude/gesture-mouse-apk-build-18aria`
 - **PR:** https://github.com/abinrobby0312-lang/gesture-mouse/pull/2 (draft)
 - **Repo:** `abinrobby0312-lang/gesture-mouse`
-- **Version:** `versionCode 7`, `versionName 1.6.0` (was 3 / 1.2.0 before the hardware session)
+- **Version:** `versionCode 8`, `versionName 1.7.0` (was 3 / 1.2.0 before the hardware session)
 
 ## What changed and why
 

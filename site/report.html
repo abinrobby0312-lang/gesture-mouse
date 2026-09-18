@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Report compatibility — Gesture Mouse</title>
+  <meta name="description" content="Tell us how Gesture Mouse works on your phone, so others with the same model know what to expect.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="assets/icon-32.png" sizes="32x32">
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="config.js" defer></script>
+  <script src="assets/site.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img class="for-light" src="assets/mark-light.webp" alt=""><img class="for-dark" src="assets/mark-dark.webp" alt="">Gesture Mouse</a>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="wrap" style="max-width:640px">
+      <p class="eyebrow">Compatibility report</p>
+      <h1 style="font-size:clamp(1.6rem,5vw,2.2rem)">How did it go on your phone?</h1>
+      <p class="dim">Some phone makers switch off the Bluetooth feature this app relies on, so real reports are the best guide for the next person with your phone. No name or email needed.</p>
+
+      <form id="report-form" novalidate style="margin-top:24px">
+        <div class="row2">
+          <label>Phone make<input type="text" name="phone_make" placeholder="e.g. Samsung" required maxlength="60" autocomplete="off"></label>
+          <label>Phone model<input type="text" name="phone_model" placeholder="e.g. Galaxy A54" required maxlength="80" autocomplete="off"></label>
+        </div>
+        <div class="row2">
+          <label>Android version <span class="dim small">(optional)</span><input type="text" name="android_version" placeholder="e.g. 14" maxlength="20"></label>
+          <label>App version <span class="dim small">(optional)</span><input type="text" name="app_version" placeholder="Settings → Help & contact" maxlength="20"></label>
+        </div>
+        <label>Computer you connected to
+          <select name="host_os" required>
+            <option value="">Choose…</option>
+            <option>Windows</option><option>macOS</option><option>Linux</option>
+            <option>ChromeOS</option><option>iPadOS</option><option>Android / TV</option><option>Other</option>
+          </select>
+        </label>
+        <fieldset>
+          <legend>Did it work?</legend>
+          <div class="radios">
+            <label><input type="radio" name="result" value="works" required> Yes, all good</label>
+            <label><input type="radio" name="result" value="partly"> Partly</label>
+            <label><input type="radio" name="result" value="no"> No</label>
+          </div>
+        </fieldset>
+        <label>Anything else? <span class="dim small">(optional — what worked, what didn't)</span>
+          <textarea name="notes" maxlength="1000"></textarea></label>
+        <div class="hp" aria-hidden="true"><label>Leave empty<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+        <button class="btn primary" type="submit">Send report</button>
+        <p class="form-msg" role="status"></p>
+        <p class="small dim">Reports are reviewed before they appear in the public list. See the <a href="privacy.html">privacy policy</a>.</p>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><a href="./">← Back to Gesture Mouse</a></span>
+    <span><a href="privacy.html">Privacy</a></span>
+  </div>
+</footer>
+</body>
+</html>
