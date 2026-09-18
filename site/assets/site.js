@@ -31,12 +31,10 @@
       return;
     }
     const mb = rel.size ? ` · ${(rel.size / 1048576).toFixed(0)} MB` : "";
-    const sha = /^[0-9a-f]{64}$/i.test(rel.sha256 || "") ? rel.sha256 : "";
     box.innerHTML = `
       <a class="btn primary" href="${escapeHtml(rel.url)}">Download for Android</a>
       <div class="meta">Version ${escapeHtml(rel.version)}${mb} · Android 9 or newer
-        ${rel.notes ? `· <a href="${escapeHtml(rel.notes)}">What's new</a>` : ""}
-        ${sha ? `<br>SHA-256 <code>${sha}</code>` : ""}</div>`;
+        ${rel.notes ? `· <a href="${escapeHtml(rel.notes)}">What's new</a>` : ""}</div>`;
   }
 
   // ------------------------------------------------------------------- forms
@@ -164,7 +162,93 @@
     return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
+  // ------------------------------------------------------ install demo
+  // The four install steps drive a CSS phone (#demo, data-step 1–4). It plays
+  // through them on its own while on screen, and stops for good the moment
+  // someone taps a step or touches the phone — then it's theirs to explore.
+  function setupDemo() {
+    const phone = $("#demo");
+    if (!phone) return;
+    const steps = [...document.querySelectorAll(".steps .step")];
+    const cap = $("#demo-cap");
+    const pad = $("#demo-pad"), touch = $(".touch", pad), kb = $("#demo-kb"), scr = $(".scr", phone);
+    const captions = {
+      1: "Step 1 — download on your phone",
+      2: "Step 2 — allow your browser to install it",
+      3: "Step 3 — open the app and allow Bluetooth",
+      4: "Step 4 — connected. Try it: drag on the trackpad",
+    };
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function show(n) {
+      phone.dataset.step = String(n);
+      steps.forEach(b => {
+        const on = b.dataset.step === String(n);
+        b.classList.toggle("active", on);
+        b.closest("li").classList.toggle("active", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      if (cap) cap.textContent = captions[n];
+      kb.tabIndex = n === 4 ? 0 : -1;
+      if (n !== 4) { scr.classList.remove("kb-open"); kb.setAttribute("aria-pressed", "false"); }
+    }
+
+    // autoplay: 1 → 4, hold, repeat — only while visible, never after input
+    let timer = null, current = 1, visible = false, stopped = reduce;
+    const dwell = n => (n === 4 ? 6000 : 3200);
+    function tick() {
+      if (stopped || !visible) return;
+      current = current % 4 + 1;
+      show(current);
+      timer = setTimeout(tick, dwell(current));
+    }
+    function stop() { stopped = true; clearTimeout(timer); }
+    new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      clearTimeout(timer);
+      if (visible && !stopped) timer = setTimeout(tick, dwell(current));
+    }, { threshold: 0.4 }).observe(phone);
+
+    steps.forEach(b => b.addEventListener("click", () => {
+      stop(); current = Number(b.dataset.step); show(current);
+      // on phones the demo sits below the steps; a tap should show its result
+      const r = phone.getBoundingClientRect();
+      if (r.top < 0 || r.bottom > innerHeight) {
+        phone.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+      }
+    }));
+    phone.addEventListener("pointerdown", stop);
+
+    // step 4: the trackpad follows a finger, mouse or pen
+    function place(e) {
+      const r = pad.getBoundingClientRect();
+      const x = Math.min(Math.max(e.clientX - r.left, 0), r.width);
+      const y = Math.min(Math.max(e.clientY - r.top, 0), r.height);
+      touch.style.left = `${(x / r.width) * 100}%`;
+      touch.style.top = `${(y / r.height) * 100}%`;
+    }
+    pad.addEventListener("pointerdown", e => {
+      if (phone.dataset.step !== "4" || e.target === kb) return;
+      pad.setPointerCapture(e.pointerId);
+      pad.classList.add("dragging", "used");
+      place(e);
+    });
+    pad.addEventListener("pointermove", e => { if (pad.classList.contains("dragging")) place(e); });
+    ["pointerup", "pointercancel"].forEach(t => pad.addEventListener(t, () => pad.classList.remove("dragging")));
+
+    // step 4: the keyboard button
+    kb.addEventListener("click", () => {
+      if (phone.dataset.step !== "4") return;
+      const open = scr.classList.toggle("kb-open");
+      kb.setAttribute("aria-pressed", open ? "true" : "false");
+      kb.setAttribute("aria-label", open ? "Hide keyboard" : "Show keyboard");
+    });
+
+    show(1);
+  }
+
   const year = $("#year"); if (year) year.textContent = new Date().getFullYear();
+  setupDemo();
   renderDownload();
   renderCompat();
 })();
