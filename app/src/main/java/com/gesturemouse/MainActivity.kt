@@ -40,7 +40,11 @@ class MainActivity : AppCompatActivity() {
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             startHid()
+            showWhatsNewIfDue()
         }
+
+    /** Set when the update note is owed but a permission prompt is in the way. */
+    private var whatsNewDue = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Light/dark first: AppCompat acts on it during super.onCreate.
@@ -96,8 +100,13 @@ class MainActivity : AppCompatActivity() {
                 TutorialDialog.RESULT_DISMISSED, this
             ) { _, _ -> requestNeededPermissions() }
             TutorialDialog.show(supportFragmentManager)
+            // nothing to announce to someone who has never had the app
+            WhatsNew.markSeen(this)
         } else {
-            requestNeededPermissions()
+            // once, on the first launch after an update — but behind any
+            // permission prompt, which is a system dialog and would cover it
+            whatsNewDue = savedInstanceState == null
+            if (!requestNeededPermissions()) showWhatsNewIfDue()
         }
     }
 
@@ -110,7 +119,14 @@ class MainActivity : AppCompatActivity() {
         startHid()
     }
 
-    private fun requestNeededPermissions() {
+    private fun showWhatsNewIfDue() {
+        if (!whatsNewDue) return
+        whatsNewDue = false
+        WhatsNew.showIfUpdated(this)
+    }
+
+    /** True when a permission prompt was raised, so nothing else should show. */
+    private fun requestNeededPermissions(): Boolean {
         val wanted = mutableListOf(Manifest.permission.CAMERA)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             wanted += Manifest.permission.BLUETOOTH_CONNECT
@@ -119,7 +135,12 @@ class MainActivity : AppCompatActivity() {
         val missing = wanted.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
-        if (missing.isEmpty()) startHid() else permissionLauncher.launch(missing.toTypedArray())
+        if (missing.isEmpty()) {
+            startHid()
+            return false
+        }
+        permissionLauncher.launch(missing.toTypedArray())
+        return true
     }
 
     fun hasCameraPermission() =
