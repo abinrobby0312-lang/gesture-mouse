@@ -49,7 +49,9 @@ class TrackpadFragment : Fragment() {
         b.keyboardInput.onVisibilityChanged = { open -> b.btnKeyboard.isChecked = open }
         b.btnKeyboard.isCheckable = true
         b.btnKeyboard.setOnClickListener {
-            if (mouse?.isConnected != true) {
+            // debug builds may open it unconnected, so the typing path can be
+            // exercised on an emulator, which has no Bluetooth
+            if (mouse?.isConnected != true && !BuildConfig.DEBUG) {
                 b.btnKeyboard.isChecked = false
                 android.widget.Toast.makeText(
                     requireContext(), "Connect to a computer first", android.widget.Toast.LENGTH_SHORT

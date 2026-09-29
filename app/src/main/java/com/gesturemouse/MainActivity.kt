@@ -43,12 +43,15 @@ class MainActivity : AppCompatActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // before super.onCreate, so the first frame is already in the right
-        // theme and accent — views read ?attr/brandAccent as they inflate
+        // Light/dark first: AppCompat acts on it during super.onCreate.
         settings.applyTheme()
-        appliedAccent = settings.accent
-        theme.applyStyle(appliedAccent!!.overlay, true)
         super.onCreate(savedInstanceState)
+        // Accent *after* super.onCreate, and before any view is inflated.
+        // Applying it earlier looked right but wasn't: when the app's theme
+        // differs from the phone's (our default is dark; most phones start
+        // light), AppCompat rebuilds the theme inside super.onCreate and the
+        // overlay is thrown away — the accent silently stayed magenta.
+        applyAccent()
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
@@ -76,6 +79,8 @@ class MainActivity : AppCompatActivity() {
         onSettingsChanged()
 
         android.util.Log.i(HidMouse.TAG, "MainActivity.onCreate")
+        android.util.Log.i(HidMouse.TAG, "theme=${settings.theme} accent=${settings.accent} " +
+                "resolved=#${Integer.toHexString(themeColor(R.attr.brandAccent))}")
 
         // First run only — guarded on savedInstanceState so a rotation doesn't
         // put it back up over whatever you were doing.
@@ -164,6 +169,15 @@ class MainActivity : AppCompatActivity() {
             if (!appliedAirSpeed.isNaN()) airTracker.reset()
             appliedAirSpeed = settings.airSpeed
         }
+    }
+
+    /**
+     * Put the chosen accent on this activity's theme. Also re-applied whenever
+     * AppCompat may have rebuilt the theme under us (see [onCreate]).
+     */
+    private fun applyAccent() {
+        appliedAccent = settings.accent
+        theme.applyStyle(appliedAccent!!.overlay, true)
     }
 
     /** One line for the settings sheet and support emails. */

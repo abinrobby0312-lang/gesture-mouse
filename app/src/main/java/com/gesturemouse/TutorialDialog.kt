@@ -98,7 +98,23 @@ class TutorialDialog : DialogFragment() {
         return b.root
     }
 
+    /**
+     * This window has its own theme, so the accent chosen in Settings has to
+     * be put back on top of it, before any view inflates.
+     */
+    override fun onCreateDialog(savedInstanceState: Bundle?): android.app.Dialog {
+        val dialog = super.onCreateDialog(savedInstanceState)
+        dialog.context.theme.applyStyle(Settings.get(requireContext()).accent.overlay, true)
+        return dialog
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        // Painted from the app's own context. A dialog window resolves colours
+        // against the phone's light/dark setting rather than the app's, so a
+        // dark app could show a light walkthrough (and, with Android's
+        // automatic dark conversion, a grey one).
+        paintBackground(b.root)
+
         b.tutorialPager.adapter = PageAdapter()
         TabLayoutMediator(b.tutorialDots, b.tutorialPager) { _, _ -> }.attach()
 
@@ -120,6 +136,10 @@ class TutorialDialog : DialogFragment() {
             }
         )
     }
+
+    /** The app's background colour, resolved where the app's theme applies. */
+    private fun paintBackground(view: View) =
+        view.setBackgroundColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.ink))
 
     private fun finish() = dismissAllowingStateLoss()
 
@@ -148,6 +168,7 @@ class TutorialDialog : DialogFragment() {
         override fun getItemCount() = pages.size
 
         override fun onBindViewHolder(holder: PageHolder, position: Int) {
+            paintBackground(holder.binding.root)
             val p = pages[position]
             holder.binding.pageStep.text = p.step
             holder.binding.pageTitle.text = p.title
