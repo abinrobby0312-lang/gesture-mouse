@@ -23,10 +23,10 @@ object WhatsNew {
      * a version with only internal changes belongs nowhere in here.
      */
     private fun noteFor(versionCode: Int): Note? = when (versionCode) {
-        9, 10, 11 -> Note(
+        9, 10, 11, 12 -> Note(
             "Keyboard bugs: squashed 🪳",
-            "If your keyboard typed nothing on the computer — OnePlus owners, this was you — it types again. " +
-                    "Whatever your phone's keyboard throws at it: autocorrect, swiping, voice, the lot.\n\n" +
+            "Typing on the computer didn't always come through. Your reports found it, and it's fixed — " +
+                    "whatever your keyboard throws at it: autocorrect, swiping, voice, the lot.\n\n" +
                     "The only rodent around here is the Gesture Mouse. 🐭",
             "Nice"
         )
