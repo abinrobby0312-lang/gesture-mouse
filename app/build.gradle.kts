@@ -6,7 +6,7 @@ plugins {
 }
 
 // Release signing details live outside the repo (see .gitignore). When the
-// file is absent — anyone who just cloned this — the release build falls back
+// file is absent ??? anyone who just cloned this ??? the release build falls back
 // to the debug key below, so the project still compiles without secrets.
 val keystorePropsFile = rootProject.file("keystore.properties")
 val keystoreProps = Properties().apply {
@@ -26,13 +26,17 @@ android {
         // Bump versionCode for every build you hand to someone — Android
         // refuses to install an APK whose versionCode is lower than what's
         // already on the device.
-        versionCode = 8
-        versionName = "1.7.0"
+        versionCode = 9
+        versionName = "1.8.0"
 
         // phones are ARM. shipping the x86 MediaPipe libs adds ~20 MB that no
         // real handset will ever load.
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            // -PemulatorAbi also builds x86_64, which the Android emulator
+            // needs. Left out of shipped builds: ~20 MB of MediaPipe libraries
+            // no handset would ever load.
+            if (project.hasProperty("emulatorAbi")) abiFilters += "x86_64"
         }
     }
 
@@ -102,3 +106,4 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
 }
+

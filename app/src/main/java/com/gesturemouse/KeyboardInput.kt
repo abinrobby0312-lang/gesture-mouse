@@ -1,34 +1,44 @@
 package com.gesturemouse
 
 import android.content.Context
+import android.text.Editable
 import android.text.InputType
+import android.text.TextWatcher
 import android.util.AttributeSet
+import android.util.Log
 import android.view.KeyEvent
-import android.view.View
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
+import androidx.appcompat.widget.AppCompatEditText
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 
 /**
- * An invisible text target for the phone's own keyboard that forwards typing
+ * An invisible text field for the phone's own keyboard, forwarding what's typed
  * to the computer as HID keystrokes.
  *
- * Phone keyboards don't type a key at a time: they compose words, autocorrect
- * them, replace them wholesale after swipe or voice input, and delete by
- * editing surrounding text. So rather than translating each IME call, this
- * keeps a mirror of what has been typed since the keyboard opened and, after
- * every change, sends the difference — backspaces for what went away, keys for
- * what arrived. The computer's text field ends up matching the mirror whatever
- * the keyboard did to get there.
+ * ## Why a real text field
  *
- * That works because the cursor is always at the end: this view is never shown,
- * so nothing can move it. Keys that *would* move it (arrows, Home/End) are
- * forwarded to the computer without touching the mirror.
+ * The first version was a bare [android.view.View] with a hand-written
+ * `InputConnection` that overrode the handful of calls Gboard happens to use.
+ * On OnePlus phones (Android 14 and 16) the mouse worked and the keyboard did
+ * nothing: their keyboard revises text through calls that weren't overridden —
+ * `replaceText` (added in Android 14), `commitCorrection`, the code-point
+ * deletes, paste — and each one changed the text while sending no keystrokes.
+ *
+ * An `EditText` gets Android's own full `InputConnection`, so every keyboard's
+ * edits land in one place: the text. This watches the text and sends whatever
+ * changed ([KeyboardMirror]), so it no longer matters *how* a keyboard edits.
+ *
+ * The field is never visible — 1dp and fully transparent — so nothing can move
+ * the cursor by touch. Keys that would move the computer's caret (arrows,
+ * Home/End, page keys) are forwarded and reset the mirror, since after them it
+ * can no longer describe what surrounds the caret.
  */
 class KeyboardInput @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
-) : View(context, attrs) {
+) : AppCompatEditText(context, attrs) {
 
     var mouse: HidMouse? = null
 
@@ -38,23 +48,111 @@ class KeyboardInput @JvmOverloads constructor(
     var isOpen = false
         private set
 
+    private val mirror = KeyboardMirror()
+
+    /** Set while the app rewrites the field itself, so it sends nothing. */
+    private var selfEdit = false
+
     init {
-        isFocusable = true
-        isFocusableInTouchMode = true
-    }
-
-    override fun onCheckIsTextEditor() = true
-
-    override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
-        // multi-line so Enter arrives as a newline instead of an editor action;
-        // no fullscreen extract UI in landscape, which would cover the trackpad
-        outAttrs.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-        outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_FULLSCREEN or
+        // invisible, but focusable: it must be a real editor for the keyboard
+        alpha = 0f
+        background = null
+        isCursorVisible = false
+        setPadding(0, 0, 0, 0)
+        isSaveEnabled = false          // never restore old text into a live session
+        importantForAutofill = IMPORTANT_FOR_AUTOFILL_NO   // no autofill popups over the trackpad
+        setTextIsSelectable(false)
+        // not focusable until asked for: a real EditText would otherwise be the
+        // first focusable view on the tab and could raise the keyboard by itself
+        isFocusable = false
+        isFocusableInTouchMode = false
+        // multi-line so Enter is a newline rather than an editor action, and no
+        // fullscreen extract UI in landscape, which would cover the trackpad
+        setSingleLine(false)
+        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        imeOptions = EditorInfo.IME_FLAG_NO_FULLSCREEN or
                 EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_ACTION_NONE
-        return Mirror()
+
+        addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+            override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: Editable?) = onFieldChanged(s?.toString() ?: "")
+        })
     }
+
+    /** Any edit at all, by any keyboard, through any route. */
+    private fun onFieldChanged(now: String) {
+        if (selfEdit) return
+        val diff = mirror.update(now)
+        if (!diff.isEmpty) {
+            Log.i(HidMouse.TAG, "keyboard: -${diff.backspaces} +${diff.text.length} char(s)")
+            mouse?.key(KeyMap.BACKSPACE, diff.backspaces)
+            mouse?.type(diff.text)
+        }
+        // Enter has been sent; start again so the field doesn't grow all
+        // session. Same once it gets long — but never mid-word, or the keyboard
+        // loses the word it's composing.
+        val composing = text?.let { BaseInputConnection.getComposingSpanStart(it) >= 0 } ?: false
+        if (!composing && (now.endsWith("\n") || mirror.shouldTrim(now.length))) clearField()
+    }
+
+    /** Empty the field without sending anything. */
+    private fun clearField() {
+        selfEdit = true
+        try {
+            text?.clear()
+            mirror.reset()
+        } finally {
+            selfEdit = false
+        }
+    }
+
+    // ---------------------------------------------------------------- keys
+
+    /**
+     * Keys that aren't text: the keyboard's backspace on an empty field, and
+     * anything that moves the caret. Text keys are left alone — they change the
+     * field, and [onFieldChanged] sends them.
+     */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        val usage = when (keyCode) {
+            // with text in the field these edit it, and the change is sent by
+            // onFieldChanged; on an empty field they belong to the computer
+            KeyEvent.KEYCODE_DEL ->
+                if (length() > 0) return super.onKeyDown(keyCode, event) else KeyMap.BACKSPACE
+            KeyEvent.KEYCODE_FORWARD_DEL ->
+                if (length() > 0) return super.onKeyDown(keyCode, event) else KeyMap.DELETE
+            KeyEvent.KEYCODE_ESCAPE -> KeyMap.ESCAPE
+            KeyEvent.KEYCODE_TAB -> KeyMap.TAB
+            KeyEvent.KEYCODE_DPAD_LEFT -> KeyMap.LEFT
+            KeyEvent.KEYCODE_DPAD_RIGHT -> KeyMap.RIGHT
+            KeyEvent.KEYCODE_DPAD_UP -> KeyMap.UP
+            KeyEvent.KEYCODE_DPAD_DOWN -> KeyMap.DOWN
+            KeyEvent.KEYCODE_MOVE_HOME -> KeyMap.HOME
+            KeyEvent.KEYCODE_MOVE_END -> KeyMap.END
+            KeyEvent.KEYCODE_PAGE_UP -> KeyMap.PAGE_UP
+            KeyEvent.KEYCODE_PAGE_DOWN -> KeyMap.PAGE_DOWN
+            else -> return super.onKeyDown(keyCode, event)
+        }
+        Log.i(HidMouse.TAG, "keyboard: key 0x${usage.toString(16)}")
+        mouse?.key(usage)
+        // the caret has moved somewhere the mirror can't describe, or the field
+        // was empty and the computer's text is no longer ours to reason about
+        clearField()
+        return true
+    }
+
+    /** Some keyboards send Enter as a key rather than a newline. */
+    override fun onEditorAction(actionCode: Int) {
+        mouse?.key(KeyMap.ENTER)
+        clearField()
+    }
+
+    // ---------------------------------------------------------------- open/close
 
     fun open() {
+        isFocusable = true
+        isFocusableInTouchMode = true
         requestFocus()
         imm().showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
         setOpen(true)
@@ -71,7 +169,11 @@ class KeyboardInput @JvmOverloads constructor(
     private fun setOpen(open: Boolean) {
         if (isOpen == open) return
         isOpen = open
+        if (!open) { isFocusable = false; isFocusableInTouchMode = false }
         imeSeen = false
+        // each session starts fresh: whatever is on the computer now is not
+        // something this field can claim to have typed
+        clearField()
         onVisibilityChanged?.invoke(open)
     }
 
@@ -91,8 +193,8 @@ class KeyboardInput @JvmOverloads constructor(
 
     private val imeWatcher = android.view.ViewTreeObserver.OnGlobalLayoutListener {
         if (!isOpen) return@OnGlobalLayoutListener
-        val visible = androidx.core.view.ViewCompat.getRootWindowInsets(this)
-            ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) ?: return@OnGlobalLayoutListener
+        val visible = ViewCompat.getRootWindowInsets(this)
+            ?.isVisible(WindowInsetsCompat.Type.ime()) ?: return@OnGlobalLayoutListener
         if (visible) imeSeen = true
         else if (imeSeen) {
             clearFocus()
@@ -120,102 +222,4 @@ class KeyboardInput @JvmOverloads constructor(
 
     private fun imm() =
         context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-
-    private inner class Mirror : BaseInputConnection(this@KeyboardInput, true) {
-
-        /** What the computer has been sent, as the mirror last stood. */
-        private var sent = ""
-
-        private fun sync() {
-            val now = editable?.toString() ?: return
-            if (now == sent) return
-            var p = 0
-            val max = minOf(now.length, sent.length)
-            while (p < max && now[p] == sent[p]) p++
-            val removed = sent.length - p
-            val added = now.substring(p)
-            mouse?.key(KeyMap.BACKSPACE, removed)
-            mouse?.type(added)
-            sent = now
-            // Enter ends a line on the computer; start the mirror afresh so it
-            // doesn't grow for the whole session. Only when nothing is being
-            // composed, or the keyboard would lose the word it's building.
-            if (now.endsWith("\n") && getComposingSpanStart(editable!!) < 0) reset()
-        }
-
-        private fun reset() {
-            editable?.clear()
-            sent = ""
-            // tell the keyboard its text is gone too, or it keeps offering
-            // corrections for words that are no longer there
-            post { if (isOpen) imm().restartInput(this@KeyboardInput) }
-        }
-
-        override fun commitText(text: CharSequence?, newCursorPosition: Int) =
-            super.commitText(text, newCursorPosition).also { sync() }
-
-        override fun setComposingText(text: CharSequence?, newCursorPosition: Int) =
-            super.setComposingText(text, newCursorPosition).also { sync() }
-
-        override fun finishComposingText() =
-            super.finishComposingText().also { sync() }
-
-        override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
-            val m = editable
-            if (m == null || m.isEmpty()) {
-                // nothing typed this session: the keyboard's backspace should
-                // still delete on the computer
-                mouse?.key(KeyMap.BACKSPACE, beforeLength)
-                mouse?.key(KeyMap.DELETE, afterLength)
-                return true
-            }
-            return super.deleteSurroundingText(beforeLength, afterLength).also { sync() }
-        }
-
-        override fun sendKeyEvent(event: KeyEvent): Boolean {
-            if (event.action != KeyEvent.ACTION_DOWN) return true
-            val usage = when (event.keyCode) {
-                KeyEvent.KEYCODE_DEL -> {
-                    // keep the mirror honest if the backspace eats typed text
-                    val m = editable
-                    if (m != null && m.isNotEmpty()) {
-                        m.delete(m.length - 1, m.length)
-                        sync()
-                        return true
-                    }
-                    KeyMap.BACKSPACE
-                }
-                KeyEvent.KEYCODE_FORWARD_DEL -> KeyMap.DELETE
-                KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                    reset(); KeyMap.ENTER
-                }
-                KeyEvent.KEYCODE_TAB -> KeyMap.TAB
-                KeyEvent.KEYCODE_ESCAPE -> KeyMap.ESCAPE
-                KeyEvent.KEYCODE_DPAD_LEFT -> KeyMap.LEFT
-                KeyEvent.KEYCODE_DPAD_RIGHT -> KeyMap.RIGHT
-                KeyEvent.KEYCODE_DPAD_UP -> KeyMap.UP
-                KeyEvent.KEYCODE_DPAD_DOWN -> KeyMap.DOWN
-                KeyEvent.KEYCODE_MOVE_HOME -> KeyMap.HOME
-                KeyEvent.KEYCODE_MOVE_END -> KeyMap.END
-                KeyEvent.KEYCODE_PAGE_UP -> KeyMap.PAGE_UP
-                KeyEvent.KEYCODE_PAGE_DOWN -> KeyMap.PAGE_DOWN
-                else -> {
-                    val c = event.unicodeChar
-                    if (c != 0) commitText(c.toChar().toString(), 1)
-                    return true
-                }
-            }
-            // cursor keys move the computer's caret away from the end, so the
-            // mirror no longer describes what's around it — start it fresh
-            if (usage != KeyMap.BACKSPACE && usage != KeyMap.ENTER) reset()
-            mouse?.key(usage)
-            return true
-        }
-
-        override fun performEditorAction(actionCode: Int): Boolean {
-            reset()
-            mouse?.key(KeyMap.ENTER)
-            return true
-        }
-    }
 }

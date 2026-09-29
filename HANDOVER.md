@@ -108,6 +108,23 @@ unregisters the upload backend (verified on hardware: hand tracking works, no
 crash, no upload job scheduled). Settings → Help & contact has a "Report how it
 works on your phone" button that opens `report.html` prefilled.
 
+**1.8.0 — the OnePlus keyboard, found with an emulator:** two reports (OnePlus
+12R / Android 16, OnePlus 12 / Android 14) said mouse fine, keyboard dead.
+`KeyboardInput` was a bare View with a hand-written `InputConnection` covering
+only the calls Gboard uses; any other route (Android 14's `replaceText`,
+`commitCorrection`, code-point deletes, paste) edited the text silently. It is
+now an `EditText` + `KeyboardMirror` (diff the text, send the difference),
+so *how* a keyboard edits no longer matters. Test with
+`gradle assembleDebug -PemulatorAbi` on an emulator (x86_64 libs; debug builds
+open the keyboard without a host). The same session found the accent never
+applying on a fresh install — it was set before `super.onCreate`, which
+AppCompat rebuilds when the app's light/dark differs from the phone's.
+**Known cosmetic issue:** the first-run walkthrough's background sits a shade
+lighter than the app (#292A3A vs #0B0C1F). Ruled out: window background, theme
+inheritance, force-dark, page background, system night mode — something
+translucent draws over the pager area. Moving the walkthrough out of a dialog
+window would settle it.
+
 **Also verified:** reconnect on app launch to the remembered host (~1 s), and
 recovery from a dropped link.
 
