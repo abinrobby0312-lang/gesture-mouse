@@ -23,7 +23,7 @@ object WhatsNew {
      * a version with only internal changes belongs nowhere in here.
      */
     private fun noteFor(versionCode: Int): Note? = when (versionCode) {
-        9, 10 -> Note(
+        9, 10, 11 -> Note(
             "Keyboard bugs: squashed 🪳",
             "If your keyboard typed nothing on the computer — OnePlus owners, this was you — it types again. " +
                     "Whatever your phone's keyboard throws at it: autocorrect, swiping, voice, the lot.\n\n" +
@@ -43,8 +43,13 @@ object WhatsNew {
         val lastSeen = prefs.getInt(KEY_LAST_SEEN, 0)
         prefs.edit().putInt(KEY_LAST_SEEN, current).apply()
 
-        // 0 means a fresh install: nothing to update *from*
-        if (lastSeen == 0 || lastSeen >= current) return false
+        if (lastSeen >= current) return false
+        // No record at all means one of two very different things: a brand new
+        // install, or an install from before this note existed — which is
+        // everyone updating from 1.8.0 or earlier, the very people the note is
+        // for. The walkthrough flag tells them apart: it is only set once the
+        // app has been used.
+        if (lastSeen == 0 && !TutorialDialog.hasBeenSeen(context)) return false
         val note = noteFor(current) ?: return false
 
         AlertDialog.Builder(context)
