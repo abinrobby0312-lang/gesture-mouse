@@ -170,24 +170,6 @@
     }
   }
 
-  // ---------------------------------------------------- compatibility list
-  // A curated file, not live reports: anyone can submit a report, so what's
-  // shown publicly is reviewed first.
-  async function renderCompat() {
-    const body = $("#compat-body");
-    if (!body) return;
-    try {
-      const rows = await (await fetch("assets/compat.json", { cache: "no-cache" })).json();
-      body.innerHTML = rows.map(r => `<tr>
-        <td>${escapeHtml(r.phone)}</td><td>${escapeHtml(r.android)}</td>
-        <td>${escapeHtml(r.computer)}</td>
-        <td><span class="pill ${r.result}">${{ works: "Works", partly: "Partly", no: "Doesn't work" }[r.result] || ""}</span></td>
-        <td class="dim">${escapeHtml(r.notes || "")}</td></tr>`).join("");
-    } catch (_) {
-      body.innerHTML = `<tr><td colspan="5" class="dim">Couldn't load the list.</td></tr>`;
-    }
-  }
-
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
@@ -280,5 +262,4 @@
   const year = $("#year"); if (year) year.textContent = new Date().getFullYear();
   setupDemo();
   renderDownload();
-  renderCompat();
 })();
