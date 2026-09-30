@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Report a bug. Text colours come from the dialog's own theme so it reads on
+     whatever surface the phone gives it. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingTop="8dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:lineSpacingMultiplier="1.15"
+            android:text="Something broke? This sends us a log from the app so we can fix it. Nothing is sent until you tap Send, and you can see all of it first. Computer names and Bluetooth addresses are scrubbed out."
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="13sp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:hint="What went wrong? (optional)">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/bugDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="top|start"
+                android:inputType="textMultiLine|textCapSentences"
+                android:maxLength="1500"
+                android:minLines="3" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/bugEmailLayout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:hint="Email, if you'd like a reply (optional)">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/bugEmail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textEmailAddress"
+                android:maxLength="200"
+                android:maxLines="1" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:id="@+id/bugPreviewToggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:minHeight="48dp"
+            android:text="See exactly what will be sent"
+            android:textColor="?attr/brandAccent"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/bugPreview"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:fontFamily="monospace"
+            android:scrollbars="vertical"
+            android:text="Gathering the log…"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="10sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/bugStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:minHeight="24dp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="13sp" />
+    </LinearLayout>
+</ScrollView>

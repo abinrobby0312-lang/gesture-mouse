@@ -10,10 +10,10 @@ macOS, Linux, iPadOS, Android TV — all work, and none of them know this app
 exists.
 
 **Everything runs on the phone.** Hand tracking is on-device MediaPipe; no
-video, no landmarks and no usage data leave the handset, and the app has no
-internet permission. (MediaPipe ships Google's usage-statistics uploader; the
-manifest removes both its INTERNET permission and its upload backend, so its
-events are discarded on the phone — see `AndroidManifest.xml`.)
+video, no landmarks and no usage data leave the handset. The one thing the app
+can send is a **bug report**, and only when you tap Send, after being shown
+exactly what's in it (see [Privacy](#privacy)). Versions before 1.9 had no
+internet permission at all.
 
 ## Brand
 
@@ -27,7 +27,7 @@ for connected, orange for waiting.
 |---|---|
 | Android | **9.0 (API 28)** or newer — when `BluetoothHidDevice` landed |
 | CPU | ARM (`arm64-v8a` / `armeabi-v7a`); no x86 build |
-| Permissions | Bluetooth ("Nearby devices") and Camera, both asked for on first run |
+| Permissions | Bluetooth ("Nearby devices") and Camera, both asked for on first run. Internet, used only for bug reports you send. |
 | Host | Anything that accepts a Bluetooth mouse — nothing to install on it |
 
 ## Install
@@ -53,7 +53,32 @@ The camera feed is processed frame by frame on the device and never stored or
 transmitted. The app writes one local file — `gestures.jsonl` in its own
 external files directory — recording gesture timings used for tuning
 thresholds. It contains no images and no personal data, is capped at 512 KB,
-and goes away when the app is uninstalled. Nothing is ever uploaded.
+and goes away when the app is uninstalled. That file is never uploaded.
+
+### Bug reports — the one thing that uses the internet
+
+From 1.9 the app has the `INTERNET` permission, for one purpose: **Settings →
+Help & contact → Report a bug**. It sends the app and Android versions, the
+phone's make and model, an optional note and email typed by the person, and
+the tail of the app's own log. The dialog shows all of it first
+(*See exactly what will be sent*), and nothing goes until Send is tapped.
+
+- **Scrubbed before it leaves the phone** (`LogScrubber`): every computer name
+  becomes `computer-N`, the phone's own name `this-phone`, and every Bluetooth
+  address `device-N`. The log names the computers the app talks to and prints
+  their full addresses on most connection lines, so this matters.
+- **Never in it:** typed text (the keyboard logs counts, not characters) or
+  anything from the camera.
+- **Private:** reports go to a table the app's key can only add to
+  (`site/supabase/schema.sql`, `bug_reports`) — no read, update or delete — so
+  they're readable only from the database dashboard. Capped at 64 KB each and
+  60 an hour in total, so a leaked key can't fill the database.
+- **Enforced, not promised:** `BugReport.kt` is the only file allowed to use
+  the network; `NetworkGuardTest` fails the build if another one does.
+- **Third-party telemetry stays off.** MediaPipe bundles Google's
+  usage-statistics uploader, which would work now that the permission exists.
+  The manifest unregisters its upload backend, so its events are discarded on
+  the phone. Check a built APK: its manifest must contain no `Cct` entry.
 
 ## First run
 

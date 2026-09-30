@@ -36,7 +36,8 @@ class TutorialDialog : DialogFragment() {
             "Gesture Mouse turns this phone into a Bluetooth mouse. Your computer " +
                 "needs nothing installed — it just sees an ordinary wireless mouse " +
                 "and uses the driver it already has.\n\nEverything runs on the phone. " +
-                "No video and no tracking data ever leave the device.",
+                "No video and no tracking data ever leave the device.\n\n" +
+                "The one thing the app can send is a bug report — and only if you tap Send.",
             logo = true
         ),
         Page(

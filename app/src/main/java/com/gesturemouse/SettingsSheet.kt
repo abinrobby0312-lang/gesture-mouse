@@ -211,6 +211,12 @@ class SettingsSheet : BottomSheetDialogFragment() {
         }
         b.contactEmail.setOnClickListener { emailUs() }
         b.reportCompat.setOnClickListener { openReportForm() }
+        b.reportBug.setOnClickListener {
+            val m = main ?: return@setOnClickListener
+            val status = m.statusSummary()   // read before dismiss() detaches the sheet
+            dismiss()
+            BugReportDialog.show(m, status)
+        }
         b.versionInfo.text = "Gesture Mouse ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" +
                 "${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}"
     }
@@ -339,8 +345,8 @@ class SettingsSheet : BottomSheetDialogFragment() {
     /**
      * The site's compatibility form, with this phone's details filled in so
      * the person only has to say how it went. It opens in the browser: the app
-     * itself still has no internet permission and sends nothing. Make, model
-     * and versions describe the hardware, not the person.
+     * itself sends nothing here (only [BugReport] uses the network). Make,
+     * model and versions describe the hardware, not the person.
      */
     private fun openReportForm() {
         val uri = Uri.parse(SITE_URL).buildUpon()
