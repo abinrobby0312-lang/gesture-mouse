@@ -6,7 +6,7 @@
   <title>Privacy policy — Gesture Mouse</title>
   <meta name="description" content="What Gesture Mouse and its website collect, why, and how to have it deleted.">
   <link rel="icon" href="assets/icon-32.png" sizes="32x32">
-  <link rel="stylesheet" href="assets/site.css?v=202609300245">
+  <link rel="stylesheet" href="assets/site.css?v=202609300610">
   <style>
     .policy h2 { font-size: 1.2rem; margin-top: 2em; }
     .policy li { margin-bottom: .4em; }
@@ -24,13 +24,14 @@
     <div class="wrap policy" style="max-width:720px">
       <p class="eyebrow">Privacy policy</p>
       <h1 style="font-size:clamp(1.6rem,5vw,2.2rem)">What we collect, and why</h1>
-      <p class="dim">Last updated 18 September 2026.</p>
+      <p class="dim">Last updated 30 September 2026.</p>
 
-      <p><strong>Short version:</strong> the app collects nothing and can't — it has no internet access. This website only stores what you choose to type into its forms, uses it only for the purpose stated, and deletes it when you ask.</p>
+      <p><strong>Short version:</strong> the app sends nothing on its own. The one thing it can send is a bug report — only when you tap Send, after showing you exactly what's in it. This website only stores what you choose to type into its forms, uses it only for the purpose stated, and deletes it when you ask.</p>
 
       <h2>The app</h2>
       <ul>
-        <li>The Android app does not request internet permission, so it cannot send data anywhere.</li>
+        <li><strong>Internet access, for one thing.</strong> From version 1.9 the app has internet permission, used only to send a bug report you choose to send (Settings → Help &amp; contact → Report a bug). Nothing is sent until you tap Send, and you can see all of it first. Versions before 1.9 had no internet permission at all. The app has no advertising, analytics or tracking, and the usage-statistics upload built into the hand-tracking library it uses is switched off.</li>
+        <li><strong>What a bug report contains.</strong> The app and Android versions; your phone's make and model; an optional note and an optional email address, both typed by you; and the recent log the app wrote about itself. Before it leaves your phone, computer names and Bluetooth addresses in that log are replaced with labels such as "computer-1" and "device-2". It never contains what you typed on the keyboard (the app logs how many characters, not which) or anything from the camera.</li>
         <li>The camera feed for air gestures is processed on the phone, frame by frame, and never stored or transmitted.</li>
         <li>The app keeps one small file on your phone with gesture timings, used to tune how gestures are recognised. It contains no images and no personal information, stays on the phone, and is removed when you uninstall the app.</li>
         <li>Settings (speed, theme and so on) are stored on the phone.</li>
@@ -47,13 +48,13 @@
       </ul>
 
       <h2>Where it's kept</h2>
-      <p>Form entries are stored in a database hosted by Supabase. The website can add entries but cannot read them back; only the maintainer can. The website itself is hosted on GitHub Pages, and downloads are served from GitHub Releases.</p>
+      <p>Form entries and bug reports are stored in a database hosted by Supabase. The website and the app can add entries but cannot read, change or delete them; only the maintainer can read them. The website itself is hosted on GitHub Pages, and downloads are served from GitHub Releases.</p>
 
       <h2>How long</h2>
-      <p>Update-list emails are kept until you unsubscribe or ask for removal. Messages and reports are kept while they're useful for support and compatibility, and deleted on request.</p>
+      <p>Update-list emails are kept until you unsubscribe or ask for removal. Messages and compatibility reports are kept while they're useful for support, and deleted on request. Bug reports are kept while the problem is being investigated and deleted afterwards, or sooner on request.</p>
 
       <h2>Your rights</h2>
-      <p>You can ask to see, correct or delete anything you've sent us, and withdraw consent to emails at any time. Use the <a href="./#contact">contact form</a> and say what you'd like — include the email address you signed up with if it's about the update list. We'll act on it within 30 days.</p>
+      <p>You can ask to see, correct or delete anything you've sent us, and withdraw consent to emails at any time. Use the <a href="./#contact">contact form</a> and say what you'd like — include the email address you signed up with if it's about the update list, or roughly when you sent it (and the email address, if you gave one) if it's about a bug report. We'll act on it within 30 days.</p>
       <p>Where the Digital Personal Data Protection Act, 2023 (India) or the GDPR applies to you, these rights are yours under that law as well.</p>
 
       <h2>Children</h2>
