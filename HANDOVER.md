@@ -125,6 +125,36 @@ inheritance, force-dark, page background, system night mode — something
 translucent draws over the pager area. Moving the walkthrough out of a dialog
 window would settle it.
 
+**1.9.0 — Report a bug, and the internet rule changes.** The app now has the
+`INTERNET` permission, for exactly one thing: Settings → Help & contact →
+Report a bug (`BugReportDialog`, `BugReport`). It shows the person everything
+first, sends only on Send, and posts to the insert-only `bug_reports` table
+(private: the app's key can't read, update or delete; 64 KB and 60/hour caps).
+**Guarantees to keep:**
+- `BugReport.kt` is the only file that may touch the network — `NetworkGuardTest`
+  fails the build otherwise. Adding a second use means editing that test on
+  purpose.
+- `LogScrubber` (11 tests) replaces every computer name with `computer-N`, the
+  phone's name with `this-phone`, and every Bluetooth address with `device-N`
+  before anything leaves the phone. The log holds full addresses and computer
+  names on most connection lines, so keep the tests green if `HidMouse`'s log
+  lines change.
+- **MediaPipe's telemetry must stay off.** With INTERNET granted, Google's
+  datatransport library would upload usage stats. The manifest unregisters its
+  backend; after any dependency bump, the built APK's manifest must contain no
+  `Cct` entry (`aapt2 dump xmltree ... --file AndroidManifest.xml`).
+- The site's privacy policy, FAQ and README all say "one thing, on Send" — if
+  a second use is ever added, change them first.
+`WhatsNew` now holds several notes and shows everything an updater missed; the
+1.9 note doubles as the disclosure that the app gained internet access, since
+Android doesn't ask again on update. **Not verified on hardware:** hand
+tracking under the new permission (the emulator has no x86_64 MediaPipe
+library, so the Air tab can't run there); the reasoning is that INTERNET plus
+no backend is the same code path as 1.7/1.8. **Verified:** the send, the
+offline failure, and the stored row, on an emulator against the live table;
+names/addresses scrubbing only by unit test (an emulator has no paired
+computers). Read reports in the Supabase dashboard (see `site/README.md`).
+
 **Also verified:** reconnect on app launch to the remembered host (~1 s), and
 recovery from a dropped link.
 
@@ -143,7 +173,7 @@ the whole reason this file exists.
 - **Branch:** `claude/gesture-mouse-apk-build-18aria`
 - **PR:** https://github.com/abinrobby0312-lang/gesture-mouse/pull/2 (draft)
 - **Repo:** `abinrobby0312-lang/gesture-mouse`
-- **Version:** `versionCode 8`, `versionName 1.7.0` (was 3 / 1.2.0 before the hardware session)
+- **Version:** `versionCode 13`, `versionName 1.9.0` (was 3 / 1.2.0 before the hardware session)
 
 ## What changed and why
 

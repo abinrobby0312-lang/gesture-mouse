@@ -87,3 +87,42 @@ revoke all on public.download_clicks from anon, authenticated;
 grant insert (version, source, platform) on public.download_clicks to anon;
 create policy "anyone can count a download" on public.download_clicks
   for insert to anon with check (true);
+
+-- bug reports from the app ---------------------------------------------------
+-- Sent by the app's "Report a bug" button, only when the user taps Send. Private
+-- by construction: the app's key may INSERT and nothing else, so reports are
+-- readable only from the dashboard. Capped at 64 KB each, and at 60 an hour in
+-- total (below), because the key ships inside the APK and can be extracted.
+create table public.bug_reports (
+  id               bigint generated always as identity primary key,
+  app_version      text not null check (char_length(app_version) between 1 and 30),
+  android_version  text check (char_length(android_version) <= 30),
+  device           text check (char_length(device) <= 120),
+  description      text check (char_length(description) <= 2000),
+  email            text check (email is null or
+                     (char_length(email) <= 254 and email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$')),
+  log              text not null check (char_length(log) between 1 and 64000),
+  handled          boolean not null default false,
+  created_at       timestamptz not null default now()
+);
+create index bug_reports_created_at_idx on public.bug_reports (created_at);
+
+alter table public.bug_reports enable row level security;
+revoke all on public.bug_reports from anon, authenticated;
+grant insert (app_version, android_version, device, description, email, log)
+  on public.bug_reports to anon;
+create policy "the app can file a report" on public.bug_reports
+  for insert to anon with check (true);
+
+create or replace function public.bug_reports_throttle() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if (select count(*) from public.bug_reports
+        where created_at > now() - interval '1 hour') >= 60 then
+    raise exception 'too many bug reports right now' using errcode = 'P0001';
+  end if;
+  return new;
+end $$;
+revoke execute on function public.bug_reports_throttle() from public, anon, authenticated;
+create trigger bug_reports_throttle before insert on public.bug_reports
+  for each row execute function public.bug_reports_throttle();

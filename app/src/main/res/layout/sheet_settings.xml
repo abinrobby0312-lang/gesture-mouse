@@ -380,11 +380,27 @@
 
                 <TextView
                     style="@style/SettingsSection"
+                    android:text="Something broken?" />
+
+                <TextView
+                    style="@style/SettingsNote"
+                    android:text="Sends us a log from the app so we can fix it. You see everything in it first, and nothing is sent until you tap Send. This is the only thing the app ever sends over the internet." />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/reportBug"
+                    style="@style/Widget.Material3.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Report a bug" />
+
+                <TextView
+                    style="@style/SettingsSection"
                     android:text="Compatibility" />
 
                 <TextView
                     style="@style/SettingsNote"
-                    android:text="Tell other people with your phone whether it works. Opens a short form in your browser with your phone's details filled in — you just say how it went." />
+                    android:text="Works? Doesn't? Opens a short form in your browser with your phone's details filled in — you just say how it went." />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/reportCompat"
@@ -404,6 +420,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/contactEmail"
+                    style="@style/Widget.Material3.Button"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"

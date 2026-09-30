@@ -17,18 +17,23 @@
     <uses-permission android:name="android.permission.CAMERA" />
 
     <!--
-        No internet access. MediaPipe (hand tracking) brings in Google's
-        datatransport library to upload its own usage statistics, and that
-        library adds INTERNET to the merged manifest. It's removed here, and
-        the upload backend is unregistered below — without a backend the
-        library deletes its events instead of sending them, so no network code
-        runs at all. (Removing only the permission isn't enough: a lookup
-        without it throws a SecurityException the library doesn't catch.)
+        Internet, for one thing: sending a bug report the user chose to send
+        (BugReport.kt — the only file allowed to touch the network; a unit test
+        enforces it). Versions before 1.9 had no internet permission at all.
 
-        ACCESS_NETWORK_STATE stays: it can't send anything, and the library's
-        job scheduler throws without it.
+        Having the permission makes the next point matter. MediaPipe (hand
+        tracking) bundles Google's datatransport library to upload its own
+        usage statistics, and with INTERNET granted it would. It is stopped by
+        unregistering its upload backend, below: with no backend registered the
+        library discards its events on the phone instead of sending them. Don't
+        remove that entry. To check a built APK, dump its manifest with aapt2
+        (the xmltree command, on AndroidManifest.xml) and search the output for
+        "Cct": it must find nothing.
+
+        ACCESS_NETWORK_STATE comes from the same library; its job scheduler
+        throws without it.
     -->
-    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
@@ -38,9 +43,10 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="false"
         android:theme="@style/Theme.GestureMouse">
 
-        <!-- see the INTERNET note above: unregister MediaPipe's telemetry upload -->
+        <!-- see the INTERNET note above: unregister MediaPipe's telemetry upload; keep this -->
         <service
             android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"
             tools:node="merge">
