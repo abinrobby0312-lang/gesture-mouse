@@ -987,20 +987,25 @@ class HidMouse(private val context: Context) {
         val strokes = KeyMap.strokes(text)
         // counts only — never what was typed
         Log.i(TAG, "keyboard: ${strokes.size} stroke(s), ${maxOf(0, text.length - strokes.size)} char(s) with no key")
-        typist.execute { strokes.forEach { stroke(it.modifiers, it.usage) } }
+        typist.execute { logSent(strokes.count { stroke(it.modifiers, it.usage) }, strokes.size) }
     }
 
     /** Press and release one key, e.g. [KeyMap.BACKSPACE] [count] times. */
     fun key(usage: Int, count: Int = 1, modifiers: Int = 0) {
         if (host == null || count <= 0) return
         Log.i(TAG, "keyboard: key 0x${usage.toString(16)} x$count")
-        typist.execute { repeat(count) { stroke(modifiers, usage) } }
+        typist.execute { logSent((0 until count).count { stroke(modifiers, usage) }, count) }
     }
 
-    /** Runs on [typist]. */
-    private fun stroke(modifiers: Int, usage: Int) {
-        val p = proxy ?: return
-        val d = host ?: return
+    /** Runs on [typist]: how many keystrokes the computer's Bluetooth stack accepted. */
+    private fun logSent(accepted: Int, total: Int) {
+        Log.i(TAG, "keyboard: $accepted of $total accepted by Bluetooth")
+    }
+
+    /** Runs on [typist]. True when the key press was accepted for sending. */
+    private fun stroke(modifiers: Int, usage: Int): Boolean {
+        val p = proxy ?: return false
+        val d = host ?: return false
         try {
             val ok = p.sendReport(d, KEYBOARD_REPORT_ID, byteArrayOf(modifiers.toByte(), 0, usage.toByte(), 0, 0, 0, 0, 0))
             if (!ok) Log.w(TAG, "keyboard: sendReport refused")
@@ -1008,8 +1013,10 @@ class HidMouse(private val context: Context) {
             // always release, even for a repeated letter: "ll" is two strokes
             p.sendReport(d, KEYBOARD_REPORT_ID, ByteArray(8))
             Thread.sleep(KEY_GAP_MS)
+            return ok
         } catch (e: Exception) {
             Log.w(TAG, "keyboard report failed", e)
+            return false
         }
     }
 
