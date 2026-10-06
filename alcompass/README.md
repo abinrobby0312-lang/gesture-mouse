@@ -1,29 +1,56 @@
 # Alcompass
 
-A compass needle that points at the nearest retail liquor outlet. No map. Built with Expo (React Native) and shipped as a **web app for now**; the same code still builds for Android.
+A compass needle that points at the nearest alcohol shop. No map. Built with Expo (React Native) and shipped as a **web app for now**; the same code still builds for Android.
 
-This folder covers build steps 1 to 4 of the handover: the scaffold, the heading needle, location plus bearing to one test shop, and the Vercel proxy. Live shops in the app, steps, calories and drinks come next.
+One Vercel project serves both the web app and `/api/shops`, the function that searches Google Places so the API key never reaches the browser.
 
-## What works now
+## How it works
 
+- **Shops.** On the first location fix, the app asks `/api/shops` for alcohol shops within 3 km. It refetches only after you move more than 500 m, and caches each roughly 500 m area for 24 hours on the device.
+- **Target.** The needle points at the nearest shop. Tap the shop name to cycle through the 5 nearest. The chosen shop stays chosen while you walk. Under the name: distance, plus "Open now" or "Closed" when Google knows.
 - **Needle.** Heading smoothed on sin and cos so it never spins the long way past north, greyed with a "calibrating" note when the reading is poor.
-- **Bearing and distance.** Great-circle bearing and haversine distance to a test shop you set. Metres under 1 km, one decimal km above.
 - **No compass.** If no heading arrives in 4 s, the arrow follows your GPS course while walking (above 0.8 m/s). Standing still, it shows the direction as text (N, NE, ...).
-- **Without a test shop** the needle points north, which is build step 2.
+- **Nothing found.** "Nothing nearby" when the search is empty; "Couldn't load shops" on an error, retried after 30 s.
 
-## Web app
+## The search (`server/places.ts`)
+
+Each request makes three Places API (New) calls around your position and merges them on place id:
+
+1. Nearby Search for places typed `liquor_store`, restricted to 3 km.
+2. Text Search for `alcohol shop`.
+3. Text Search for `wine shop`, since many Indian shops are named this way and not typed `liquor_store`.
+
+Text results are cut to 3 km. Places Google marks as closed are dropped, and any place id in `EXCLUDE` is dropped. Nothing else is filtered: a bar that turns up in the search shows up. The rest is nearest first, up to 20.
+
+The field mask asks only for the seven fields used, since Google bills on it. The function logs nothing about the caller and sends `Cache-Control: no-store`.
+
+## Run it
 
 ```bash
 cd alcompass
 npm install
-cp .env.example .env.local   # then fill in a shop near you
-npm run web                  # dev server
-npm run build:web            # static site in dist/
+npm run web          # dev server; /api/shops is not served here
+npm test             # maths, browser heading, shop list, search
+npm run typecheck
 ```
 
-`EXPO_PUBLIC_*` values are baked in at build time; restart the dev server (or rebuild with `--clear`) after changing them.
+For live shops locally, either run the whole project with `npx vercel dev` (needs `GOOGLE_PLACES_API_KEY` in `.env.local`), or point the dev server at a deployed API with `EXPO_PUBLIC_SHOPS_URL=https://<deployment>/api/shops npm run web`. `EXPO_PUBLIC_*` values are baked in at build time.
 
-On the web the sensors are the browser's, in `src/useSensors.web.ts`:
+## Deploy
+
+```bash
+cd alcompass
+npx vercel link                              # Root Directory: alcompass
+npx vercel env add GOOGLE_PLACES_API_KEY
+npx vercel deploy
+curl "https://<deployment>/api/shops?lat=12.9716&lng=77.5946"
+```
+
+`vercel.json` builds the static site with `expo export`; files in `api/` deploy as functions. Restrict the Google key to the Places API (New) only. Anyone who finds the URL can call `/api/shops` and spend your Places quota, so set a daily quota cap in Google Cloud before sharing the link. Check the current Places pricing and free allowance too.
+
+CI (workflow **Alcompass**) typechecks, tests and builds the web app on every push that touches `alcompass/`.
+
+## Web limits
 
 | | Android Chrome | iPhone Safari |
 | --- | --- | --- |
@@ -31,54 +58,11 @@ On the web the sensors are the browser's, in `src/useSensors.web.ts`:
 | Position | Geolocation API | Geolocation API |
 | Calibrating flag | not reported | uncertainty above 30 degrees |
 
-Limits of the web version:
-
-- **HTTPS only.** Browsers block location and compass on plain http, so test on the deployed site (or `localhost`), not on a LAN IP.
-- **Magnetic north, not true north.** Browsers give magnetic heading. Around Bangalore the difference is under 2 degrees.
-- **No step counter.** Browsers have no pedometer API. Steps and calories (handover steps 6 and 7) need either step detection from the accelerometer while the page is open, or the native build.
+- **HTTPS only.** Browsers block location and compass on plain http, so test on the deployed site.
+- **Magnetic north, not true north.** Around Bangalore the difference is under 2 degrees.
+- **No step counter.** Browsers have no pedometer API; steps and calories need accelerometer step detection or the native build.
 - **Screen must stay on.** A web page gets no sensor data in the background.
-
-### Deploy
-
-`vercel.json` builds the static site. Create a Vercel project with Root Directory `alcompass`, add the `EXPO_PUBLIC_DEV_SHOP_*` variables if you want the test shop, and deploy. CI (workflow **Alcompass**) runs the tests and the web build on every push that touches `alcompass/`.
 
 ## Native build (later)
 
-`src/useSensors.ts` is the native version, using `expo-location` (true heading, accuracy 0 to 3). With a USB-connected Android phone: `npx expo run:android`. `android/` and `ios/` are generated by `npx expo prebuild`; never commit them, change `app.json` instead.
-
-## Checks
-
-```bash
-npm run typecheck
-npm test            # bearing, distance, heading filter, browser heading
-```
-
-## Proxy (`proxy/`)
-
-One Vercel function, `GET /api/shops?lat=..&lng=..`. It keeps the Google key off the phone and returns up to 20 shops within 3 km, nearest first:
-
-```json
-{ "shops": [{ "id": "...", "name": "...", "latitude": 12.97, "longitude": 77.6,
-              "address": "...", "openNow": true, "distanceM": 420 }] }
-```
-
-How it picks shops:
-
-1. Nearby Search restricted to `liquor_store` in a 3 km circle.
-2. Text Search for `wine shop` and `liquor store` near the same point, because many Indian shops are not typed `liquor_store`. Results are cut to 3 km and merged on place id.
-3. Anything also typed `bar`, `night_club` or `restaurant` is dropped, as is anything not `OPERATIONAL`. Add known mislabelled place ids to `OVERRIDES.exclude` in `lib/places.ts`.
-
-The field mask asks only for the seven fields above, since Google bills on it. Each request makes three Places calls. The function logs nothing about the caller and sends `Cache-Control: no-store`.
-
-### Deploy and test
-
-```bash
-cd alcompass/proxy
-npm install && npm test
-npx vercel link                       # set the project Root Directory to alcompass/proxy
-npx vercel env add GOOGLE_PLACES_API_KEY
-npx vercel deploy
-curl "https://<your-deployment>/api/shops?lat=12.9716&lng=77.5946"
-```
-
-Restrict the key in Google Cloud to the Places API (New) only. An Android app restriction does not apply here, because the key is used from Vercel, not the phone. Check the current Places pricing and free allowance before launch.
+`src/useSensors.ts` is the native version of the sensor hooks, using `expo-location`. It needs `EXPO_PUBLIC_SHOPS_URL` set to the deployed API. With a USB-connected Android phone: `npx expo run:android`. `android/` and `ios/` are generated by `npx expo prebuild`; never commit them, change `app.json` instead.
