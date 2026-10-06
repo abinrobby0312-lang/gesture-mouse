@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { LatLng } from './geo';
+import { covers, nearby, parseDataset, type Dataset } from './dataset';
 import { logError, track } from './log';
-import { findShops } from './osm';
 import { CACHE_TTL_MS, cellKey, parseShops, shouldRefetch, type Shop } from './shops';
 
-// Same-origin by default: the web app and /api/shops deploy as one Vercel project.
-// Native builds (and local web dev without `vercel dev`) set EXPO_PUBLIC_SHOPS_URL to a deployed one.
-const SHOPS_URL = process.env.EXPO_PUBLIC_SHOPS_URL || '/api/shops';
+// Same-origin by default: the web app, the dataset and /api/shops deploy as one Vercel project.
+// Native builds (and local web dev without `vercel dev`) set EXPO_PUBLIC_SITE_URL to the deployed site.
+const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL || '';
+const SHOPS_URL = `${SITE_URL}/api/shops`;
+const DATASET_URL = `${SITE_URL}/shops-in.json`;
+/** The dataset is rebuilt weekly; a phone re-downloads it at most daily. */
+const DATASET_TTL_MS = 24 * 60 * 60 * 1000;
 
 export type ShopsState =
   | { status: 'idle' }
@@ -40,18 +44,44 @@ async function writeCache(key: string, shops: Shop[]): Promise<void> {
   }
 }
 
-// Ask OpenStreetMap directly first: from a phone it answers in seconds, while from Vercel's shared
-// servers it can queue for over a minute. /api/shops is the fallback.
-async function fetchShops(at: LatLng): Promise<{ shops: Shop[]; source: 'direct' | 'fallback' }> {
-  try {
-    return { shops: parseShops({ shops: await findShops(at.latitude, at.longitude, { timeoutMs: 15_000 }) }), source: 'direct' };
-  } catch (e) {
-    logError('shops.direct', e);
-    const url = `${SHOPS_URL}?lat=${at.latitude.toFixed(5)}&lng=${at.longitude.toFixed(5)}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`shops ${res.status}`);
-    return { shops: parseShops(await res.json()), source: 'fallback' };
-  }
+let dataset: Promise<Dataset | null> | null = null;
+
+/** The bundled shop list: from memory, then the phone's storage, then the site. Null if unavailable. */
+function loadDataset(): Promise<Dataset | null> {
+  dataset ??= (async () => {
+    try {
+      const raw = await AsyncStorage.getItem('dataset:in');
+      if (raw) {
+        const cached = JSON.parse(raw) as { at: number; d: Dataset };
+        if (Date.now() - cached.at < DATASET_TTL_MS) return parseDataset(cached.d);
+      }
+    } catch {
+      // A bad or blocked store only costs a download.
+    }
+    try {
+      const res = await fetch(DATASET_URL);
+      if (!res.ok) throw new Error(`dataset ${res.status}`);
+      const d = parseDataset(await res.json());
+      AsyncStorage.setItem('dataset:in', JSON.stringify({ at: Date.now(), d })).catch(() => {});
+      return d;
+    } catch (e) {
+      logError('shops.dataset', e);
+      dataset = null; // try again on the next fetch
+      return null;
+    }
+  })();
+  return dataset;
+}
+
+// The bundled dataset answers instantly wherever it applies (India). Elsewhere, or if it cannot load,
+// /api/shops searches OpenStreetMap live.
+async function fetchShops(at: LatLng): Promise<{ shops: Shop[]; source: 'bundled' | 'live' }> {
+  const d = await loadDataset();
+  if (d && covers(d, at.latitude, at.longitude)) return { shops: nearby(d, at.latitude, at.longitude), source: 'bundled' };
+  const url = `${SHOPS_URL}?lat=${at.latitude.toFixed(5)}&lng=${at.longitude.toFixed(5)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`shops ${res.status}`);
+  return { shops: parseShops(await res.json()), source: 'live' };
 }
 
 /** Shops near `position`, refetched after moving 500 m and cached per 500 m area for 24 h. */

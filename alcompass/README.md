@@ -2,7 +2,7 @@
 
 A compass needle that points at the nearest alcohol shop. No map. Built with Expo (React Native) and shipped as a **web app for now**; the same code still builds for Android.
 
-Shops come from OpenStreetMap through the free Overpass API: no API key, no account, no cost. The phone asks Overpass directly, which answers in seconds. If that fails it falls back to `/api/shops`, a Vercel function running the same search; from Vercel's shared servers Overpass can take over a minute.
+Shops come from OpenStreetMap: no API key, no account, no cost. Every alcohol shop OpenStreetMap has in India (about 1,600, 109 KB, 36 KB gzipped) ships with the app as `public/shops-in.json`. The phone downloads it once a day and picks shops within 3 km locally, so finding shops makes no live request. Outside India it falls back to `/api/shops`, a Vercel function that searches Overpass live. Browsers can't query the main Overpass server directly: it answers phone browsers with 406.
 
 ## How it works
 
@@ -15,23 +15,23 @@ Shops come from OpenStreetMap through the free Overpass API: no API key, no acco
 - **No compass.** If no heading arrives in 4 s, the arrow follows your GPS course while walking (above 0.8 m/s). Standing still, it shows the direction as text (N, NE, ...).
 - **Nothing found.** "Nothing nearby" when no shop is within 3 km; "Couldn't load shops" on an error, retried after 30 s.
 
-## The search (`src/osm.ts`)
+## The search (`src/osm.ts`, `src/dataset.ts`)
 
-Each request makes one Overpass query within 3 km of your position, for:
+`scripts/build-shops.ts` builds the dataset with one country-wide Overpass query (a few minutes), and the **Alcompass shop data** workflow reruns it weekly once it is on the default branch. The live fallback runs the same query within 3 km of your position. Both look for:
 
 1. Shops tagged `shop=alcohol` or `shop=wine`.
 2. Any shop whose name contains wine, liquor or spirits, since many Indian shops are named "... Wines" without the right tag.
 
 Disused shops and anything in `EXCLUDE` are dropped. The rest is nearest first, up to 20. Each instance gets 15 s (25 s from the function) before the next one in `OVERPASS_URLS` is tried. The function identifies itself with `USER_AGENT`, as the Overpass usage policy asks; browsers send their own. Asking directly means the phone's rough position goes to Overpass, which keeps no account and logs per its own policy. The function logs nothing about the caller and sends `Cache-Control: no-store`.
 
-Coverage depends on OpenStreetMap. Missing shops can be added at openstreetmap.org, and they show up within minutes.
+Coverage depends on OpenStreetMap. Missing shops can be added at openstreetmap.org; they reach the app at the next weekly rebuild, or straight away after `npx tsx scripts/build-shops.ts` and a deploy. The screen credits "© OpenStreetMap contributors", as the ODbL licence requires.
 
 ## Logs (`src/log.ts`)
 
 Activity and errors go to the `alcompass_events` table in the **gesture-mouse** Supabase project (free tier); the setup is in `supabase/alcompass_events.sql`. The app holds only the publishable key, and row-level security lets it insert but never read. No coordinates, shop identities or personal data are logged. Each app launch gets a random session id, so one visit reads as a sequence.
 
-- **Activity:** `app_open`, `start_tap`, `permission`, `shops_loaded` (count, `direct`/`fallback`/`cache`, ms), `next_shop`, `arrived` (mode, distance to 50 m, kcal, minutes), `left_shop`, `no_shops`, `compass_missing` / `compass_course` / `compass_calibrating`.
-- **Errors:** `render` (a crash while drawing; the screen shows "Something broke" with Try again), `shops.direct` (Overpass from the phone failed, fallback used), `shops.load` (no shops at all), `window.error`, `unhandledrejection`, and `fatal` / `uncaught` natively. Each error carries the message, stack and the visitor's last 8 steps (`trail`).
+- **Activity:** `app_open`, `start_tap`, `permission`, `shops_loaded` (count, `bundled`/`live`/`cache`, ms), `next_shop`, `arrived` (mode, distance to 50 m, kcal, minutes), `left_shop`, `no_shops`, `compass_missing` / `compass_course` / `compass_calibrating`.
+- **Errors:** `render` (a crash while drawing; the screen shows "Something broke" with Try again), `shops.dataset` (the bundled list failed to load, live search used), `shops.load` (no shops at all), `window.error`, `unhandledrejection`, and `fatal` / `uncaught` natively. Each error carries the message, stack and the visitor's last 8 steps (`trail`).
 
 Read them in the Supabase dashboard (Table Editor, or SQL Editor):
 

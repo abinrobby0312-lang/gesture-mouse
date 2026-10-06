@@ -12,7 +12,7 @@ export type Shop = {
   distanceM: number;
 };
 
-type Element = {
+export type Element = {
   type: 'node' | 'way' | 'relation';
   id: number;
   lat?: number;
@@ -67,7 +67,17 @@ export function buildQuery(lat: number, lng: number): string {
   );
 }
 
-function distanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+/** Every alcohol shop in one country, for the bundled dataset. Takes a few minutes; run at build time. */
+export function buildCountryQuery(iso: string): string {
+  return (
+    `[out:json][timeout:600];area["ISO3166-1"="${iso}"][admin_level=2]->.c;(` +
+    'nwr["shop"~"^(alcohol|wine)$"](area.c);' +
+    'nwr["shop"]["name"~"wine|liquor|liqour|spirits",i](area.c);' +
+    ');out center tags;'
+  );
+}
+
+export function distanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const r = (d: number) => (d * Math.PI) / 180;
   const h =
     Math.sin(r(lat2 - lat1) / 2) ** 2 +
@@ -88,7 +98,7 @@ export type FindOptions = {
   timeoutMs?: number;
 };
 
-async function query(url: string, q: string, o: Required<Omit<FindOptions, 'userAgent'>> & FindOptions): Promise<Element[]> {
+export async function query(url: string, q: string, o: Required<Omit<FindOptions, 'userAgent'>> & FindOptions): Promise<Element[]> {
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), o.timeoutMs);
   try {
@@ -119,6 +129,14 @@ export async function findShops(lat: number, lng: number, options: FindOptions =
   }
   if (!elements) throw lastError instanceof UpstreamError ? lastError : new UpstreamError(0);
 
+  return elementsToShops(elements, { lat, lng });
+}
+
+/**
+ * Overpass elements to shops. With a center, only shops within RADIUS_M of it, nearest first and
+ * capped at MAX_SHOPS; without one (the bundled dataset), all of them.
+ */
+export function elementsToShops(elements: Element[], center: { lat: number; lng: number } | null): Shop[] {
   const byId = new Map<string, Shop>();
   for (const el of elements) {
     const id = `${el.type}/${el.id}`;
@@ -129,7 +147,7 @@ export async function findShops(lat: number, lng: number, options: FindOptions =
     const pLat = el.lat ?? el.center?.lat;
     const pLng = el.lon ?? el.center?.lon;
     if (pLat == null || pLng == null) continue;
-    const d = distanceM(lat, lng, pLat, pLng);
+    const d = center ? distanceM(center.lat, center.lng, pLat, pLng) : 0;
     if (d > RADIUS_M) continue;
     byId.set(id, {
       id,
@@ -141,6 +159,7 @@ export async function findShops(lat: number, lng: number, options: FindOptions =
       distanceM: Math.round(d),
     });
   }
+  const all = [...byId.values()];
+  return center ? all.sort((a, b) => a.distanceM - b.distanceM).slice(0, MAX_SHOPS) : all;
 
-  return [...byId.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, MAX_SHOPS);
 }

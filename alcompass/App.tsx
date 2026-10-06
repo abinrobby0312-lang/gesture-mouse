@@ -73,6 +73,7 @@ function Screen() {
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
+      <Text style={styles.credit}>Shop data © OpenStreetMap contributors</Text>
       {granted ? (
         <Compass labelWidth={labelWidth} emblemSize={emblemSize} position={position} heading={heading} />
       ) : (
@@ -331,6 +332,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   pressed: { opacity: 0.94 },
+  // Required by the OpenStreetMap licence (ODbL); kept out of the way at the foot of the screen.
+  credit: {
+    position: 'absolute',
+    bottom: 14,
+    fontFamily: font.text,
+    fontSize: 11,
+    color: ink.onGround,
+    opacity: 0.8,
+  },
   small: {
     fontFamily: font.text,
     fontSize: 15,
