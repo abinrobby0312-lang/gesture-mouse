@@ -1,0 +1,5 @@
+.env*
+.impeccable
+.claude
+dist
+node_modules

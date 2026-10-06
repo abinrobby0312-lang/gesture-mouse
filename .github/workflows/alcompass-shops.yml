@@ -1,0 +1,39 @@
+name: Alcompass shop data
+
+# Rebuilds alcompass/public/shops-in.json from OpenStreetMap every week and commits it when it changed.
+# Scheduled runs only start once this file is on the default branch.
+
+on:
+  schedule:
+    - cron: "30 21 * * 0" # Mondays 03:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  shops:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: alcompass
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - name: Build the dataset
+        run: npx tsx scripts/build-shops.ts
+      - name: Commit if changed
+        run: |
+          # generatedAt changes on every run; only commit when the shops themselves changed.
+          if git diff --quiet -I'"generatedAt"' -- public/shops-in.json; then
+            echo "No shop changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/shops-in.json
+          git commit -m "Alcompass: refresh shop data from OpenStreetMap"
+          git push

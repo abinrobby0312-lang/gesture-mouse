@@ -1,0 +1,30 @@
+name: Alcompass
+
+# Separate from the gesture-mouse Gradle build; runs only when the Expo app
+# (including its /api/shops function) changes.
+
+on:
+  push:
+    branches: [main]
+    paths: ["alcompass/**", ".github/workflows/alcompass.yml"]
+  pull_request:
+    paths: ["alcompass/**", ".github/workflows/alcompass.yml"]
+  workflow_dispatch:
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: alcompass
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Build web app
+        run: npx expo export --platform web

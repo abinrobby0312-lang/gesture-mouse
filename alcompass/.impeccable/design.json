@@ -1,0 +1,317 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-06T07:30:36.291Z",
+  "title": "Design System: Alcompass",
+  "extensions": {
+    "colorMeta": {
+      "navy-ground": {
+        "role": "neutral",
+        "displayName": "Deep Navy Ground",
+        "canonical": "#0B1240",
+        "tonalRamp": [
+          "oklch(15% 0.09 270)",
+          "oklch(25% 0.09 270)",
+          "oklch(35% 0.09 270)",
+          "oklch(45% 0.09 270)",
+          "oklch(55% 0.09 270)",
+          "oklch(65% 0.09 270)",
+          "oklch(80% 0.09 270)",
+          "oklch(95% 0.09 270)"
+        ]
+      },
+      "chrome-yellow": {
+        "role": "primary",
+        "displayName": "Chrome Yellow",
+        "canonical": "#F7C51E",
+        "tonalRamp": [
+          "oklch(15% 0.17 89)",
+          "oklch(25% 0.17 89)",
+          "oklch(35% 0.17 89)",
+          "oklch(45% 0.17 89)",
+          "oklch(55% 0.17 89)",
+          "oklch(65% 0.17 89)",
+          "oklch(80% 0.17 89)",
+          "oklch(95% 0.17 89)"
+        ]
+      },
+      "ochre-ray": {
+        "role": "tertiary",
+        "displayName": "Ochre Ray",
+        "canonical": "#E9A80F",
+        "tonalRamp": [
+          "oklch(15% 0.16 77)",
+          "oklch(25% 0.16 77)",
+          "oklch(35% 0.16 77)",
+          "oklch(45% 0.16 77)",
+          "oklch(55% 0.16 77)",
+          "oklch(65% 0.16 77)",
+          "oklch(80% 0.16 77)",
+          "oklch(95% 0.16 77)"
+        ]
+      },
+      "vermilion": {
+        "role": "secondary",
+        "displayName": "Vermilion",
+        "canonical": "#E0301E",
+        "tonalRamp": [
+          "oklch(15% 0.21 31)",
+          "oklch(25% 0.21 31)",
+          "oklch(35% 0.21 31)",
+          "oklch(45% 0.21 31)",
+          "oklch(55% 0.21 31)",
+          "oklch(65% 0.21 31)",
+          "oklch(80% 0.21 31)",
+          "oklch(95% 0.21 31)"
+        ]
+      },
+      "bottle-green": {
+        "role": "primary",
+        "displayName": "Bottle Green",
+        "canonical": "#1E6B34",
+        "tonalRamp": [
+          "oklch(15% 0.11 150)",
+          "oklch(25% 0.11 150)",
+          "oklch(35% 0.11 150)",
+          "oklch(45% 0.11 150)",
+          "oklch(55% 0.11 150)",
+          "oklch(65% 0.11 150)",
+          "oklch(80% 0.11 150)",
+          "oklch(95% 0.11 150)"
+        ]
+      },
+      "glass-highlight": {
+        "role": "tertiary",
+        "displayName": "Glass Highlight",
+        "canonical": "#4FA35F",
+        "tonalRamp": [
+          "oklch(15% 0.13 148)",
+          "oklch(25% 0.13 148)",
+          "oklch(35% 0.13 148)",
+          "oklch(45% 0.13 148)",
+          "oklch(55% 0.13 148)",
+          "oklch(65% 0.13 148)",
+          "oklch(80% 0.13 148)",
+          "oklch(95% 0.13 148)"
+        ]
+      },
+      "key-black": {
+        "role": "neutral",
+        "displayName": "Key Black",
+        "canonical": "#111111",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(80% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "paper-white": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(80% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "navy-mist": {
+        "role": "neutral",
+        "displayName": "Navy Mist",
+        "canonical": "#C9D0F5",
+        "tonalRamp": [
+          "oklch(15% 0.06 275)",
+          "oklch(25% 0.06 275)",
+          "oklch(35% 0.06 275)",
+          "oklch(45% 0.06 275)",
+          "oklch(55% 0.06 275)",
+          "oklch(65% 0.06 275)",
+          "oklch(80% 0.06 275)",
+          "oklch(95% 0.06 275)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The distance under the banner; the largest type on screen. Tabular figures, digits roll individually."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "YOU'VE ARRIVED on arrival, uppercase."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Banner text in yellow caps on black, up to two lines: FOLLOW THE BOTTLE, the shop name on arrival, state titles."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Start button caps."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Small print on the label (max 300px) and the hint on navy."
+      },
+      "body-strong": {
+        "displayName": "Body Strong",
+        "purpose": "Status lines on navy (max 320px) and the pending line."
+      },
+      "chip": {
+        "displayName": "Chip",
+        "purpose": "Open till chip, uppercase."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Serial strip: No. n of m and ALCOMPASS, uppercase, tabular figures."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "tray-out",
+        "value": "160ms cubic-bezier(0.55, 0.085, 0.68, 0.53)",
+        "purpose": "Label slides out left (ease-in quad) on tap, arrival or leaving."
+      },
+      {
+        "name": "tray-in",
+        "value": "340ms cubic-bezier(0.19, 1, 0.22, 1)",
+        "purpose": "Next label slides in from the right (ease-out expo)."
+      },
+      {
+        "name": "digit-roll",
+        "value": "260ms cubic-bezier(0.19, 1, 0.22, 1)",
+        "purpose": "Each changed distance character rises 0.45em into place and fades in."
+      },
+      {
+        "name": "needle-turn",
+        "value": "120ms",
+        "purpose": "Bottle eases to each new heading along the shortest arc."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "instant",
+        "purpose": "Tray slide and digit roll are skipped when the OS asks for reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "label-max",
+        "value": "400px",
+        "purpose": "Label width is min(86vw, 400px); the layout is a single centred column at every width."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Matchbox Label",
+      "kind": "card",
+      "refersTo": "label",
+      "description": "The single object on screen: yellow stock, inset black keyline, serial strip, emblem, banner, small print. Tapping slides it like a matchbox tray.",
+      "html": "<div class=\"ds-label\" role=\"button\" tabindex=\"0\"><div class=\"ds-label-keyline\"><div class=\"ds-label-serial\"><span>No. 2 of 5</span><span>Alcompass</span></div><div class=\"ds-label-emblem\"><svg viewBox=\"0 0 100 100\" width=\"200\" height=\"200\"><path d=\"M50 50 L50.00 1.50 L62.55 3.15 Z M50 50 L74.25 8.00 L84.29 15.71 Z M50 50 L92.00 25.75 L96.85 37.45 Z M50 50 L98.50 50.00 L96.85 62.55 Z M50 50 L92.00 74.25 L84.29 84.29 Z M50 50 L74.25 92.00 L62.55 96.85 Z M50 50 L50.00 98.50 L37.45 96.85 Z M50 50 L25.75 92.00 L15.71 84.29 Z M50 50 L8.00 74.25 L3.15 62.55 Z M50 50 L1.50 50.00 L3.15 37.45 Z M50 50 L8.00 25.75 L15.71 15.71 Z M50 50 L25.75 8.00 L37.45 3.15 Z\" fill=\"#E9A80F\"/><circle cx=\"50\" cy=\"50\" r=\"48.5\" stroke=\"#111111\" stroke-width=\"1.2\" fill=\"none\"/><circle cx=\"50\" cy=\"50\" r=\"45.5\" stroke=\"#111111\" stroke-width=\"0.5\" fill=\"none\"/><g transform=\"rotate(35 50 50)\" stroke=\"#111111\" stroke-width=\"1.3\" stroke-linejoin=\"round\"><path d=\"M46.5 13 L53.5 13 L53.5 31 C53.5 37 60 39 60 45 L60 89 Q60 92 57 92 L43 92 Q40 92 40 89 L40 45 C40 39 46.5 37 46.5 31 Z\" fill=\"#1E6B34\"/><rect x=\"43\" y=\"46\" width=\"2.4\" height=\"41\" fill=\"#4FA35F\" stroke=\"none\"/><rect x=\"40\" y=\"57\" width=\"20\" height=\"17\" fill=\"#E0301E\"/><rect x=\"45.5\" y=\"11.5\" width=\"9\" height=\"2.5\" fill=\"#111111\" stroke=\"none\"/><path d=\"M45 11.5 L45 7 Q45 5.5 46.5 5.5 L53.5 5.5 Q55 5.5 55 7 L55 11.5 Z\" fill=\"#E0301E\"/></g></svg></div><div class=\"ds-label-banner\">Follow the bottle</div><div class=\"ds-label-print\"><span class=\"ds-distance\">780 m</span></div></div></div>",
+      "css": ".ds-label { width: 340px; background: #F7C51E; padding: 7px; border-radius: 0; cursor: pointer; transition: opacity 120ms; } .ds-label:active { opacity: 0.94; } .ds-label:focus-visible { outline: 3px solid #FFFFFF; outline-offset: 6px; } .ds-label-keyline { border: 2px solid #111111; padding: 0 14px 16px; } .ds-label-serial { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #111111; font-family: Archivo, Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 1.4px; text-transform: uppercase; color: #111111; font-variant-numeric: tabular-nums; } .ds-label-emblem { display: flex; justify-content: center; padding: 18px 0; } .ds-label-banner { background: #111111; margin: 0 -14px; padding: 8px 14px 10px; font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 800; font-size: 32px; line-height: 34px; letter-spacing: 0.4px; text-transform: uppercase; text-align: center; color: #F7C51E; } .ds-label-print { display: flex; flex-direction: column; align-items: center; padding-top: 12px; } .ds-distance { font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 900; font-size: 68px; line-height: 70px; color: #111111; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Bottle Needle Emblem",
+      "kind": "custom",
+      "refersTo": "label",
+      "description": "A 24-ray ochre sunburst in two black rings with the green beer bottle as the needle; the vermilion crown cap points at the shop.",
+      "html": "<div class=\"ds-emblem\"><svg viewBox=\"0 0 100 100\" width=\"200\" height=\"200\"><path d=\"M50 50 L50.00 1.50 L62.55 3.15 Z M50 50 L74.25 8.00 L84.29 15.71 Z M50 50 L92.00 25.75 L96.85 37.45 Z M50 50 L98.50 50.00 L96.85 62.55 Z M50 50 L92.00 74.25 L84.29 84.29 Z M50 50 L74.25 92.00 L62.55 96.85 Z M50 50 L50.00 98.50 L37.45 96.85 Z M50 50 L25.75 92.00 L15.71 84.29 Z M50 50 L8.00 74.25 L3.15 62.55 Z M50 50 L1.50 50.00 L3.15 37.45 Z M50 50 L8.00 25.75 L15.71 15.71 Z M50 50 L25.75 8.00 L37.45 3.15 Z\" fill=\"#E9A80F\"/><circle cx=\"50\" cy=\"50\" r=\"48.5\" stroke=\"#111111\" stroke-width=\"1.2\" fill=\"none\"/><circle cx=\"50\" cy=\"50\" r=\"45.5\" stroke=\"#111111\" stroke-width=\"0.5\" fill=\"none\"/><g transform=\"rotate(-30 50 50)\" stroke=\"#111111\" stroke-width=\"1.3\" stroke-linejoin=\"round\"><path d=\"M46.5 13 L53.5 13 L53.5 31 C53.5 37 60 39 60 45 L60 89 Q60 92 57 92 L43 92 Q40 92 40 89 L40 45 C40 39 46.5 37 46.5 31 Z\" fill=\"#1E6B34\"/><rect x=\"43\" y=\"46\" width=\"2.4\" height=\"41\" fill=\"#4FA35F\" stroke=\"none\"/><rect x=\"40\" y=\"57\" width=\"20\" height=\"17\" fill=\"#E0301E\"/><rect x=\"45.5\" y=\"11.5\" width=\"9\" height=\"2.5\" fill=\"#111111\" stroke=\"none\"/><path d=\"M45 11.5 L45 7 Q45 5.5 46.5 5.5 L53.5 5.5 Q55 5.5 55 7 L55 11.5 Z\" fill=\"#E0301E\"/></g></svg></div>",
+      "css": ".ds-emblem { display: inline-block; background: #F7C51E; padding: 12px; } .ds-emblem svg g { transition: transform 120ms; }"
+    },
+    {
+      "name": "Banner",
+      "kind": "custom",
+      "refersTo": "label-banner",
+      "description": "Full-width black band with yellow condensed caps naming the state, or the shop's name on arrival.",
+      "html": "<div class=\"ds-banner\">Sri Lakshmi Wines</div>",
+      "css": ".ds-banner { width: 320px; background: #111111; padding: 8px 14px 10px; font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 800; font-size: 32px; line-height: 34px; letter-spacing: 0.4px; text-transform: uppercase; text-align: center; color: #F7C51E; }"
+    },
+    {
+      "name": "Start Button",
+      "kind": "button",
+      "refersTo": "button-start",
+      "description": "The one button: a square black block with yellow caps, stretched across the label; pressed turns vermilion.",
+      "html": "<div class=\"ds-start-wrap\"><button class=\"ds-btn-start\">Start</button></div>",
+      "css": ".ds-start-wrap { background: #F7C51E; padding: 16px; width: 300px; } .ds-btn-start { display: block; width: 100%; background: #111111; color: #F7C51E; border: none; border-radius: 0; padding: 14px 0; font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 800; font-size: 24px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; } .ds-btn-start:active { background: #E0301E; } .ds-btn-start:focus-visible { outline: 3px solid #111111; outline-offset: 3px; }"
+    },
+    {
+      "name": "Arrival Block",
+      "kind": "custom",
+      "refersTo": "arrival-headline",
+      "description": "On arrival within 30 m: YOU'VE ARRIVED in heavy caps and the vermilion Open till chip.",
+      "html": "<div class=\"ds-arrival\"><div class=\"ds-arrived\">You've arrived</div><span class=\"ds-chip-open\">Open till 10:30 pm</span></div>",
+      "css": ".ds-arrival { background: #F7C51E; padding: 12px 16px 16px; display: flex; flex-direction: column; align-items: center; width: 300px; } .ds-arrived { font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 900; font-size: 48px; line-height: 52px; text-transform: uppercase; color: #111111; } .ds-chip-open { margin-top: 8px; padding: 3px 10px; background: #E0301E; color: #FFFFFF; border-radius: 0; font-family: Archivo, Arial, sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 1.2px; text-transform: uppercase; }"
+    },
+    {
+      "name": "Off-label Hint and Status",
+      "kind": "custom",
+      "refersTo": "hint",
+      "description": "Text on navy under the label: the hint in navy mist, status lines in chrome yellow bold. States are always worded.",
+      "html": "<div class=\"ds-ground\"><p class=\"ds-hint\">Tap the label to try another shop</p><p class=\"ds-status\">Calibrating. Move the phone in a figure 8.</p></div>",
+      "css": ".ds-ground { background: #0B1240; padding: 16px; text-align: center; width: 320px; } .ds-hint { margin: 0; font-family: Archivo, Arial, sans-serif; font-weight: 500; font-size: 15px; color: #C9D0F5; } .ds-status { margin: 10px auto 0; max-width: 320px; font-family: Archivo, Arial, sans-serif; font-weight: 700; font-size: 15px; line-height: 21px; color: #F7C51E; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Matchbox Label",
+    "overview": "Alcompass is printed, not rendered. The whole product is one chrome-yellow matchbox label laid on a deep navy ground: an outer stock edge, an inset black keyline, a serial strip, a sunburst emblem with a green beer bottle as the compass needle, a black banner of condensed caps, and the small print underneath. Every colour is a flat chromolitho ink at full strength. The label is the only object on screen; everything else is navy.\n\nDensity is deliberately low. The bottle owns the label, the distance is the largest type, and the shop's own identity is held back until arrival, when the label slides away like a matchbox tray and comes back carrying the shop's name. Motion behaves like paper and counters: trays slide, digits roll one at a time, the needle turns by the shortest way.\n\nThe world refuses the category default of a dark screen, a centred grey ring and a single accent. It also refuses bar and party clichés (neon, foam, cocktail glasses); the beer-bottle needle is the one sanctioned drinking image, chosen by the user.",
+    "keyCharacteristics": [
+      "One square-cornered yellow label, about 86% of the screen width (max 400px), centred on navy.",
+      "Flat ink only: no gradients, glow, grain or shadows.",
+      "Black keylines draw every edge, in the label, the emblem rings and around the bottle.",
+      "Condensed heavy caps (Big Shoulders Display) for anything read at arm's length; Archivo for small print.",
+      "Tabular figures for the distance and the serial, so numbers hold still while they change."
+    ],
+    "rules": [
+      {
+        "name": "The Full-Strength Ink Rule",
+        "body": "Inks print flat and opaque. Opacity appears only as a state signal: the sunburst drops to 0.45 while the heading is untrustworthy, and the pressed label to 0.94. Never as a decorative tint.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two-Grounds Rule",
+        "body": "On the yellow label, type is Key Black (Chrome Yellow only inside the black banner or button). On the navy, type is Chrome Yellow for status and Navy Mist for hints.",
+        "section": "colors"
+      },
+      {
+        "name": "The Arm's-Length Rule",
+        "body": "Anything read while walking (banner, distance, arrival, compass point) is set in Big Shoulders Display. Archivo never carries the primary reading.",
+        "section": "typography"
+      },
+      {
+        "name": "The Still-Numbers Rule",
+        "body": "Distances and serials use tabular figures, so a changing digit never shifts its neighbours.",
+        "section": "typography"
+      },
+      {
+        "name": "The Printed-Not-Lit Rule",
+        "body": "No box shadows, drop shadows, glows or gradients. If something needs to stand forward, it gets a black keyline or a black panel.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep a single label as the only object on the navy ground, at `min(86vw, 400px)`.",
+      "Do print every colour as a flat, full-strength ink from the palette; use opacity only for the dimmed-heading and pressed states.",
+      "Do draw edges with Key Black keylines (2px label keyline, 1px serial rule, 1.3-unit stroke round the bottle).",
+      "Do set anything read while walking in Big Shoulders Display caps, and every number with tabular figures.",
+      "Do change content by sliding the label like a matchbox tray, and change digits by rolling them one at a time; honour reduced motion.",
+      "Do keep the bottle green with a vermilion cap and band; the cap is the pointing end."
+    ],
+    "donts": [
+      "Don't use gradients, glow, grain, or any shadow.",
+      "Don't round interface corners; only the bottle illustration and the emblem rings are curved.",
+      "Don't introduce bar or party imagery (neon, foam, cocktail glasses) beyond the bottle needle.",
+      "Don't fall back to the category default of a dark screen, a grey ring and one accent colour.",
+      "Don't use grey for secondary type on navy; use Navy Mist, tinted from the ground.",
+      "Don't put Chrome Yellow type directly on the yellow stock or Key Black type on navy."
+    ]
+  }
+}
