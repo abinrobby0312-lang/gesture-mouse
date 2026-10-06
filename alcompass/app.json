@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Alcompass",
+    "slug": "alcompass",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.alcompass"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0d0f13",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "app.alcompass"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "backgroundColor": "#0d0f13",
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Alcompass uses your location to point at the nearest retail liquor outlet."
+        }
+      ]
+    ]
+  }
+}

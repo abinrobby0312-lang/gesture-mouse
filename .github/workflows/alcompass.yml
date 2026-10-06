@@ -1,0 +1,62 @@
+name: Alcompass
+
+# Separate from the gesture-mouse Gradle build; runs only when the Expo app
+# or its proxy changes.
+
+on:
+  push:
+    branches: [main]
+    paths: ["alcompass/**", ".github/workflows/alcompass.yml"]
+  pull_request:
+    paths: ["alcompass/**", ".github/workflows/alcompass.yml"]
+  workflow_dispatch:
+
+jobs:
+  proxy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: alcompass/proxy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: alcompass
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # android/ is generated, never committed.
+      - name: Prebuild
+        run: npx expo prebuild --platform android --no-install
+
+      # Release variant so the JS is bundled in; the Expo template signs it
+      # with the debug key, so it installs for testing but is not a store build.
+      - name: Assemble APK
+        working-directory: alcompass/android
+        run: ./gradlew --no-daemon assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Alcompass-apk
+          path: alcompass/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
