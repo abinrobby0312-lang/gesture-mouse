@@ -1,7 +1,7 @@
 name: Alcompass
 
 # Separate from the gesture-mouse Gradle build; runs only when the Expo app
-# or its proxy changes.
+# (including its /api/shops function) changes.
 
 on:
   push:
@@ -12,20 +12,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  proxy:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: alcompass/proxy
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-
   app:
     runs-on: ubuntu-latest
     defaults:

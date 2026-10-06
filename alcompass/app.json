@@ -36,7 +36,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Alcompass uses your location to point at the nearest retail liquor outlet."
+          "locationWhenInUsePermission": "Alcompass uses your location to point at the nearest alcohol shop."
         }
       ]
     ]

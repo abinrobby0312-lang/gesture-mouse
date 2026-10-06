@@ -1,4 +1,4 @@
-import { findShops, parseCoords, PlacesError } from '../lib/places.js';
+import { findShops, parseCoords, PlacesError } from '../server/places';
 
 // GET /api/shops?lat=12.97&lng=77.59
 // Logs nothing about the caller: no coordinates, no IPs.
@@ -12,7 +12,7 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const shops = await findShops(coords.lat, coords.lng, key);
-    // Caching lives in the app (per 500 m cell), so coordinates never sit in a shared cache.
+    // Caching lives in the app (per 500 m area), so coordinates never sit in a shared cache.
     return json({ shops }, 200, { 'Cache-Control': 'no-store' });
   } catch (e) {
     const status = e instanceof PlacesError ? e.status : 0;

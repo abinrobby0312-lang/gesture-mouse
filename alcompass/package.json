@@ -27,7 +27,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "test": "tsx --test src/*.test.ts",
+    "test": "tsx --test src/*.test.ts server/*.test.ts",
     "typecheck": "tsc --noEmit",
     "web": "expo start --web",
     "build:web": "expo export --platform web"

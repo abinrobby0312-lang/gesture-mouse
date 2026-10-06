@@ -1,4 +1,4 @@
-// Shop lookup against Google Places API (New). No imports, so tests can load it directly.
+// "Alcohol shops near me" against Google Places API (New). No imports, so tests can load it directly.
 
 export type Shop = {
   id: string;
@@ -38,18 +38,14 @@ export const FIELD_MASK = [
 export const RADIUS_M = 3000;
 const MAX_SHOPS = 20;
 
-// Off-premise retail is the MRP outlet. On-premise places are marked up.
-const RETAIL_TYPE = 'liquor_store';
-const ON_PREMISE_TYPES = new Set(['bar', 'night_club', 'restaurant']);
+const SHOP_TYPE = 'liquor_store';
 
-// Indian shops are often named this way and not typed liquor_store.
-const TEXT_QUERIES = ['wine shop', 'liquor store'];
+// The plain search a person would type, plus "wine shop", which is how many Indian shops are named
+// (and often not typed liquor_store).
+const TEXT_QUERIES = ['alcohol shop', 'wine shop'];
 
-/**
- * Manual fixes for places Google labels wrongly.
- * `exclude`: place ids that are not MRP retail (e.g. a bar typed liquor_store).
- */
-export const OVERRIDES: { exclude: Set<string> } = { exclude: new Set([]) };
+/** Place ids Google lists that are not alcohol shops at all. */
+export const EXCLUDE = new Set<string>([]);
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -93,14 +89,10 @@ async function post(fetchImpl: Fetch, url: string, key: string, body: unknown): 
   return json.places ?? [];
 }
 
-/** Keeps a place only if it looks like operating off-premise retail. */
-export function isRetail(p: Place, fromNearby: boolean): boolean {
-  if (!p.id || OVERRIDES.exclude.has(p.id)) return false;
-  if (p.businessStatus && p.businessStatus !== 'OPERATIONAL') return false;
-  const types = p.types ?? [];
-  if (types.some((t) => ON_PREMISE_TYPES.has(t))) return false;
-  // Nearby Search was already restricted to liquor_store; text hits may be untyped shops.
-  return fromNearby ? types.includes(RETAIL_TYPE) : true;
+/** Drops excluded and closed places; everything else Google returns for the searches is kept. */
+export function isOpenForBusiness(p: Place): boolean {
+  if (!p.id || EXCLUDE.has(p.id)) return false;
+  return !p.businessStatus || p.businessStatus === 'OPERATIONAL';
 }
 
 export async function findShops(
@@ -113,7 +105,7 @@ export async function findShops(
 
   const [nearby, ...texts] = await Promise.all([
     post(fetchImpl, NEARBY_URL, key, {
-      includedTypes: [RETAIL_TYPE],
+      includedTypes: [SHOP_TYPE],
       maxResultCount: 20,
       locationRestriction: { circle },
     }),
@@ -124,13 +116,13 @@ export async function findShops(
   ]);
 
   const byId = new Map<string, Shop>();
-  const add = (p: Place, fromNearby: boolean) => {
-    if (!isRetail(p, fromNearby) || byId.has(p.id!)) return;
+  for (const p of [...nearby, ...texts.flat()]) {
+    if (!isOpenForBusiness(p) || byId.has(p.id!)) continue;
     const pLat = p.location?.latitude;
     const pLng = p.location?.longitude;
-    if (pLat == null || pLng == null) return;
+    if (pLat == null || pLng == null) continue;
     const d = distanceM(lat, lng, pLat, pLng);
-    if (d > RADIUS_M) return;
+    if (d > RADIUS_M) continue;
     byId.set(p.id!, {
       id: p.id!,
       name: p.displayName?.text ?? 'Unnamed shop',
@@ -140,9 +132,7 @@ export async function findShops(
       openNow: p.currentOpeningHours?.openNow ?? null,
       distanceM: Math.round(d),
     });
-  };
-  nearby.forEach((p) => add(p, true));
-  texts.flat().forEach((p) => add(p, false));
+  }
 
   return [...byId.values()].sort((a, b) => a.distanceM - b.distanceM).slice(0, MAX_SHOPS);
 }
