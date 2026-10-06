@@ -10,7 +10,7 @@ const shop = (id: string, dLat: number): Shop => ({
   latitude: here.latitude + dLat,
   longitude: here.longitude,
   address: null,
-  openNow: null,
+  hours: null,
 });
 
 test('refetch only after moving more than 500 m', () => {
@@ -32,13 +32,15 @@ test('nearestFirst sorts from the current spot and keeps five', () => {
 test('parseShops keeps valid rows and rejects a malformed body', () => {
   const out = parseShops({
     shops: [
-      { id: 'x', name: 'X Wines', latitude: 1, longitude: 2, address: 'Road', openNow: true },
+      { id: 'x', name: 'X Wines', latitude: 1, longitude: 2, address: 'Road', hours: 'Mo-Su 10:00-22:00' },
       { id: 'y', latitude: 'bad', longitude: 2 },
       { id: 'z', latitude: 3, longitude: 4 },
     ],
   });
   assert.deepEqual(out.map((s) => s.id), ['x', 'z']);
   assert.equal(out[1].name, 'Unnamed shop');
-  assert.equal(out[1].openNow, null);
+  assert.equal(out[0].hours, 'Mo-Su 10:00-22:00');
+  assert.equal(out[1].hours, null);
   assert.throws(() => parseShops({ error: 'upstream_failed' }));
 });
+

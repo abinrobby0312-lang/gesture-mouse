@@ -12,7 +12,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0d0f13",
+        "backgroundColor": "#0B1240",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -26,19 +26,20 @@
       "output": "single",
       "name": "Alcompass",
       "shortName": "Alcompass",
-      "themeColor": "#0d0f13",
-      "backgroundColor": "#0d0f13",
+      "themeColor": "#0B1240",
+      "backgroundColor": "#0B1240",
       "display": "standalone",
       "orientation": "portrait"
     },
-    "backgroundColor": "#0d0f13",
+    "backgroundColor": "#0B1240",
     "plugins": [
       [
         "expo-location",
         {
           "locationWhenInUsePermission": "Alcompass uses your location to point at the nearest alcohol shop."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

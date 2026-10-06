@@ -58,11 +58,13 @@ export function usePosition(enabled: boolean): Position | null {
   useEffect(() => {
     if (!enabled || !navigator.geolocation) return;
     const id = navigator.geolocation.watchPosition(
-      ({ coords }) =>
+      ({ coords, timestamp }) =>
         setPos({
           latitude: coords.latitude,
           longitude: coords.longitude,
           course: courseFrom(coords.speed, coords.heading),
+          accuracy: coords.accuracy ?? null,
+          at: timestamp,
         }),
       () => {},
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 },

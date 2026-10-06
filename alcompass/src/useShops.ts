@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { LatLng } from './geo';
+import { findShops } from './osm';
 import { CACHE_TTL_MS, cellKey, parseShops, shouldRefetch, type Shop } from './shops';
 
 // Same-origin by default: the web app and /api/shops deploy as one Vercel project.
@@ -23,6 +24,7 @@ async function readCache(key: string): Promise<Shop[] | null> {
     const raw = await AsyncStorage.getItem(`shops:${key}`);
     if (!raw) return null;
     const entry = JSON.parse(raw) as CacheEntry;
+    // Opening hours are evaluated live on the phone, so a cached list only goes stale with age.
     return Date.now() - entry.at < CACHE_TTL_MS ? entry.shops : null;
   } catch {
     return null;
@@ -37,11 +39,17 @@ async function writeCache(key: string, shops: Shop[]): Promise<void> {
   }
 }
 
+// Ask OpenStreetMap directly first: from a phone it answers in seconds, while from Vercel's shared
+// servers it can queue for over a minute. /api/shops is the fallback.
 async function fetchShops(at: LatLng): Promise<Shop[]> {
-  const url = `${SHOPS_URL}?lat=${at.latitude.toFixed(5)}&lng=${at.longitude.toFixed(5)}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`shops ${res.status}`);
-  return parseShops(await res.json());
+  try {
+    return parseShops({ shops: await findShops(at.latitude, at.longitude, { timeoutMs: 15_000 }) });
+  } catch {
+    const url = `${SHOPS_URL}?lat=${at.latitude.toFixed(5)}&lng=${at.longitude.toFixed(5)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`shops ${res.status}`);
+    return parseShops(await res.json());
+  }
 }
 
 /** Shops near `position`, refetched after moving 500 m and cached per 500 m area for 24 h. */

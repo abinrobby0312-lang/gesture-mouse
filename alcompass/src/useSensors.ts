@@ -34,11 +34,13 @@ export function usePosition(enabled: boolean): Position | null {
     let cancelled = false;
     Location.watchPositionAsync(
       { accuracy: Location.Accuracy.Balanced, distanceInterval: 5, timeInterval: 2000 },
-      ({ coords }) =>
+      ({ coords, timestamp }) =>
         setPos({
           latitude: coords.latitude,
           longitude: coords.longitude,
           course: courseFrom(coords.speed, coords.heading),
+          accuracy: coords.accuracy ?? null,
+          at: timestamp,
         }),
     ).then((s) => (cancelled ? s.remove() : (sub = s)));
     return () => {

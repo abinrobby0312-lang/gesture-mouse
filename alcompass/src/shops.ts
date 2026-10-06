@@ -4,7 +4,8 @@ export type Shop = LatLng & {
   id: string;
   name: string;
   address: string | null;
-  openNow: boolean | null;
+  /** The OpenStreetMap opening_hours value, or null when the shop has none. */
+  hours: string | null;
 };
 
 /** Refetch only after moving this far from where the last list was fetched. */
@@ -52,7 +53,7 @@ export function parseShops(body: unknown): Shop[] {
         latitude: s.latitude,
         longitude: s.longitude,
         address: typeof s.address === 'string' ? s.address : null,
-        openNow: typeof s.openNow === 'boolean' ? s.openNow : null,
+        hours: typeof s.hours === 'string' && s.hours.trim() ? s.hours : null,
       },
     ];
   });

@@ -14,6 +14,10 @@ export type SensorAccess = {
 export type Position = LatLng & {
   /** GPS course over ground in degrees, or null when not moving. */
   course: number | null;
+  /** Horizontal accuracy in metres, or null when unknown. */
+  accuracy: number | null;
+  /** When the fix was taken, epoch ms. */
+  at: number;
 };
 
 export type Heading = {

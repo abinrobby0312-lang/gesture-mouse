@@ -2,27 +2,29 @@
 
 A compass needle that points at the nearest alcohol shop. No map. Built with Expo (React Native) and shipped as a **web app for now**; the same code still builds for Android.
 
-One Vercel project serves both the web app and `/api/shops`, the function that searches Google Places so the API key never reaches the browser.
+Shops come from OpenStreetMap through the free Overpass API: no API key, no account, no cost. The phone asks Overpass directly, which answers in seconds. If that fails it falls back to `/api/shops`, a Vercel function running the same search; from Vercel's shared servers Overpass can take over a minute.
 
 ## How it works
 
 - **Shops.** On the first location fix, the app asks `/api/shops` for alcohol shops within 3 km. It refetches only after you move more than 500 m, and caches each roughly 500 m area for 24 hours on the device.
-- **Target.** The needle points at the nearest shop. Tap the shop name to cycle through the 5 nearest. The chosen shop stays chosen while you walk. Under the name: distance, plus "Open now" or "Closed" when Google knows.
+- **No time limits.** Every shop nearby is shown, whatever the hour. When a shop lists opening hours in OpenStreetMap, the arrival label shows what they say ("Open till 10:00 PM" or "Listed as closed right now"), read on the phone against its own clock (`src/hours.ts`). Shops without hours show nothing about it.
+- **Target.** A beer bottle points at the nearest shop. Tap the label to cycle through the 5 nearest. The chosen shop stays chosen while you walk.
+- **The trip verdict.** While you head to the shop, the app adds up GPS distance and time (`src/trip.ts`). It skips fixes rougher than 35 m, ignores jitter under 5 m and drops GPS jumps. On arrival it judges the trip by pace: a stroll (under 60 m), a walk, a run (average 2.4 m/s or more), or wheels (at least 20 s and 40% of the distance above 16 km/h). Calories assume 70 kg (walking 0.5, running 1.0 kcal per kg per km), and they're converted into sips or shares of a 140 kcal beer, with a sarcastic line. Wheels get 0 kcal and a don't-drink-and-drive line. GPS can't tell a scooter from a car, so they share one verdict.
+- **Mystery until you arrive.** While walking, the label shows only the bottle and the distance. Within 30 m it reveals the shop's name, plus its listed hours if it has any (hidden again beyond 60 m).
 - **Needle.** Heading smoothed on sin and cos so it never spins the long way past north, greyed with a "calibrating" note when the reading is poor.
 - **No compass.** If no heading arrives in 4 s, the arrow follows your GPS course while walking (above 0.8 m/s). Standing still, it shows the direction as text (N, NE, ...).
-- **Nothing found.** "Nothing nearby" when the search is empty; "Couldn't load shops" on an error, retried after 30 s.
+- **Nothing found.** "Nothing nearby" when no shop is within 3 km; "Couldn't load shops" on an error, retried after 30 s.
 
-## The search (`server/places.ts`)
+## The search (`src/osm.ts`)
 
-Each request makes three Places API (New) calls around your position and merges them on place id:
+Each request makes one Overpass query within 3 km of your position, for:
 
-1. Nearby Search for places typed `liquor_store`, restricted to 3 km.
-2. Text Search for `alcohol shop`.
-3. Text Search for `wine shop`, since many Indian shops are named this way and not typed `liquor_store`.
+1. Shops tagged `shop=alcohol` or `shop=wine`.
+2. Any shop whose name contains wine, liquor or spirits, since many Indian shops are named "... Wines" without the right tag.
 
-Text results are cut to 3 km. Places Google marks as closed are dropped, and any place id in `EXCLUDE` is dropped. Nothing else is filtered: a bar that turns up in the search shows up. The rest is nearest first, up to 20.
+Disused shops and anything in `EXCLUDE` are dropped. The rest is nearest first, up to 20. Each instance gets 15 s (25 s from the function) before the next one in `OVERPASS_URLS` is tried. The function identifies itself with `USER_AGENT`, as the Overpass usage policy asks; browsers send their own. Asking directly means the phone's rough position goes to Overpass, which keeps no account and logs per its own policy. The function logs nothing about the caller and sends `Cache-Control: no-store`.
 
-The field mask asks only for the seven fields used, since Google bills on it. The function logs nothing about the caller and sends `Cache-Control: no-store`.
+Coverage depends on OpenStreetMap. Missing shops can be added at openstreetmap.org, and they show up within minutes.
 
 ## Run it
 
@@ -30,23 +32,22 @@ The field mask asks only for the seven fields used, since Google bills on it. Th
 cd alcompass
 npm install
 npm run web          # dev server; /api/shops is not served here
-npm test             # maths, browser heading, shop list, search
+npm test             # maths, heading, shop list, search, hours, trip
 npm run typecheck
 ```
 
-For live shops locally, either run the whole project with `npx vercel dev` (needs `GOOGLE_PLACES_API_KEY` in `.env.local`), or point the dev server at a deployed API with `EXPO_PUBLIC_SHOPS_URL=https://<deployment>/api/shops npm run web`. `EXPO_PUBLIC_*` values are baked in at build time.
+For live shops locally, either run the whole project with `npx vercel dev`, or point the dev server at a deployed API with `EXPO_PUBLIC_SHOPS_URL=https://<deployment>/api/shops npm run web`. `EXPO_PUBLIC_*` values are baked in at build time.
 
 ## Deploy
 
 ```bash
 cd alcompass
-npx vercel link                              # Root Directory: alcompass
-npx vercel env add GOOGLE_PLACES_API_KEY
-npx vercel deploy
+npx vercel link            # project: alcompass
+npx vercel deploy --prod
 curl "https://<deployment>/api/shops?lat=12.9716&lng=77.5946"
 ```
 
-`vercel.json` builds the static site with `expo export`; files in `api/` deploy as functions. Restrict the Google key to the Places API (New) only. Anyone who finds the URL can call `/api/shops` and spend your Places quota, so set a daily quota cap in Google Cloud before sharing the link. Check the current Places pricing and free allowance too.
+`vercel.json` builds the static site with `expo export`; files in `api/` deploy as functions. Nothing needs configuring: the search needs no key and fits the free Hobby plan.
 
 CI (workflow **Alcompass**) typechecks, tests and builds the web app on every push that touches `alcompass/`.
 
