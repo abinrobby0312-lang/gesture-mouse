@@ -34,6 +34,7 @@ A single-purpose instrument rather than a map or a listing app. You follow a nee
 - No time restriction (user's call, 2026-10-06): every nearby shop is shown at any hour. Listed OpenStreetMap opening hours are shown on arrival as information only; most shops have none, and nothing is assumed.
 - Magnetic north on the web; HTTPS only; no step counter in browsers.
 - Calories: estimated from GPS distance and pace on the way to the shop (web has no step counter), assuming 70 kg, and turned into sips of beer on arrival. Pace above 16 km/h counts as wheels: 0 kcal and a don't-drink-and-drive line. Copy is deliberately sarcastic (user's call, 2026-10-06).
+- Usage and error logging to Supabase (insert-only, no coordinates or personal data). A privacy policy should mention it.
 - Not built yet: a per-user weight setting, a real step counter, edge cases, age gate, dry-state check, privacy policy, disclaimer.
 - Open decisions: search radius, offline use, dry days, the name check.
 

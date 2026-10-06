@@ -19,6 +19,8 @@ import { Label } from './src/Label';
 import { Needle } from './src/Needle';
 import { RollingText } from './src/RollingText';
 import { addFix, EMPTY_TRIP, verdict, type Verdict } from './src/trip';
+import { ErrorBoundary } from './src/ErrorBoundary';
+import { track } from './src/log';
 import { openState } from './src/hours';
 import { nearestFirst } from './src/shops';
 import { font, ink } from './src/theme';
@@ -38,6 +40,14 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 }
 
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <Screen />
+    </ErrorBoundary>
+  );
+}
+
+function Screen() {
   const { width, height } = useWindowDimensions();
   const [fontsLoaded] = useFonts({
     BigShouldersDisplay_800ExtraBold,
@@ -50,6 +60,9 @@ export default function App() {
   const granted = permission === 'granted';
   const position = usePosition(granted);
   const heading = useHeading(granted);
+  useEffect(() => {
+    if (permission !== 'idle') track('permission', { state: permission });
+  }, [permission]);
 
   const labelWidth = Math.min(width * 0.86, 400);
   // The emblem is the label's largest element, but the whole label must fit a short screen.
@@ -84,7 +97,10 @@ export default function App() {
               ) : (
                 <Pressable
                   testID="start"
-                  onPress={access.request}
+                  onPress={() => {
+                    track('start_tap');
+                    access.request();
+                  }}
                   accessibilityRole="button"
                   style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
                 >
@@ -142,6 +158,7 @@ function Compass({ labelWidth, emblemSize, position, heading }: CompassProps) {
   const next = () => {
     if (candidates.length < 2) return;
     const nextId = candidates[(index + 1) % candidates.length].id;
+    track('next_shop', { index: (index + 1) % candidates.length, of: candidates.length });
     swapLabel(() => setChosenId(nextId));
   };
   const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: slide.value }] }));
@@ -174,8 +191,11 @@ function Compass({ labelWidth, emblemSize, position, heading }: CompassProps) {
     swapLabel(() => {
       setArrivedId(flip);
       if (flip) {
-        setTripVerdict(verdict(trip.current));
+        const v = verdict(trip.current);
+        setTripVerdict(v);
+        track('arrived', { mode: v.mode, distance_m: Math.round(v.distanceM / 50) * 50, kcal: v.kcal, minutes: Math.round(trip.current.movingMs / 60_000) });
       } else {
+        track('left_shop');
         // Walked off again: the next arrival judges the trip from here.
         trip.current = EMPTY_TRIP;
         setTripVerdict(null);
@@ -188,6 +208,16 @@ function Compass({ labelWidth, emblemSize, position, heading }: CompassProps) {
   // Which way the phone faces: magnetometer first, GPS course while walking as the fallback.
   const facing = heading.unavailable ? position?.course ?? null : heading.degrees;
   const usingCourse = heading.unavailable && facing != null;
+
+  // Log each sensor or result condition once per change, to see what visitors actually hit.
+  const condition = heading.unavailable ? (usingCourse ? 'compass_course' : 'compass_missing') : heading.calibrating ? 'compass_calibrating' : null;
+  useEffect(() => {
+    if (condition) track(condition);
+  }, [condition]);
+  const empty = shops.status === 'ready' && candidates.length === 0;
+  useEffect(() => {
+    if (empty) track('no_shops');
+  }, [empty]);
 
   let status: string | null = null;
   if (heading.unavailable && !usingCourse) status = 'No compass on this phone. Walk a few steps and the bottle will point.';

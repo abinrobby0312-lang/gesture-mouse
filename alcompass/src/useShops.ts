@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { LatLng } from './geo';
+import { logError, track } from './log';
 import { findShops } from './osm';
 import { CACHE_TTL_MS, cellKey, parseShops, shouldRefetch, type Shop } from './shops';
 
@@ -41,14 +42,15 @@ async function writeCache(key: string, shops: Shop[]): Promise<void> {
 
 // Ask OpenStreetMap directly first: from a phone it answers in seconds, while from Vercel's shared
 // servers it can queue for over a minute. /api/shops is the fallback.
-async function fetchShops(at: LatLng): Promise<Shop[]> {
+async function fetchShops(at: LatLng): Promise<{ shops: Shop[]; source: 'direct' | 'fallback' }> {
   try {
-    return parseShops({ shops: await findShops(at.latitude, at.longitude, { timeoutMs: 15_000 }) });
-  } catch {
+    return { shops: parseShops({ shops: await findShops(at.latitude, at.longitude, { timeoutMs: 15_000 }) }), source: 'direct' };
+  } catch (e) {
+    logError('shops.direct', e);
     const url = `${SHOPS_URL}?lat=${at.latitude.toFixed(5)}&lng=${at.longitude.toFixed(5)}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`shops ${res.status}`);
-    return parseShops(await res.json());
+    return { shops: parseShops(await res.json()), source: 'fallback' };
   }
 }
 
@@ -68,15 +70,19 @@ export function useShops(position: LatLng | null): ShopsState {
     setState((s) => (s.status === 'ready' ? s : { status: 'loading' }));
 
     (async () => {
+      const t0 = Date.now();
       try {
         let shops = await readCache(key);
+        let source = 'cache';
         if (!shops) {
-          shops = await fetchShops(at);
+          ({ shops, source } = await fetchShops(at));
           void writeCache(key, shops);
         }
+        track('shops_loaded', { count: shops.length, source, ms: Date.now() - t0 });
         lastFetchAt.current = at;
         setState({ status: 'ready', shops });
-      } catch {
+      } catch (e) {
+        logError('shops.load', e, { ms: Date.now() - t0 });
         // Keep showing the last list if there was one; retry on a later position update.
         failedAt.current = Date.now();
         setState((s) => ({ status: 'error', shops: s.status === 'ready' || s.status === 'error' ? s.shops : [] }));

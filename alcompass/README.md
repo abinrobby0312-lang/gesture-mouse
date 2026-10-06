@@ -26,6 +26,22 @@ Disused shops and anything in `EXCLUDE` are dropped. The rest is nearest first, 
 
 Coverage depends on OpenStreetMap. Missing shops can be added at openstreetmap.org, and they show up within minutes.
 
+## Logs (`src/log.ts`)
+
+Activity and errors go to the `alcompass_events` table in the **gesture-mouse** Supabase project (free tier); the setup is in `supabase/alcompass_events.sql`. The app holds only the publishable key, and row-level security lets it insert but never read. No coordinates, shop identities or personal data are logged. Each app launch gets a random session id, so one visit reads as a sequence.
+
+- **Activity:** `app_open`, `start_tap`, `permission`, `shops_loaded` (count, `direct`/`fallback`/`cache`, ms), `next_shop`, `arrived` (mode, distance to 50 m, kcal, minutes), `left_shop`, `no_shops`, `compass_missing` / `compass_course` / `compass_calibrating`.
+- **Errors:** `render` (a crash while drawing; the screen shows "Something broke" with Try again), `shops.direct` (Overpass from the phone failed, fallback used), `shops.load` (no shops at all), `window.error`, `unhandledrejection`, and `fatal` / `uncaught` natively. Each error carries the message, stack and the visitor's last 8 steps (`trail`).
+
+Read them in the Supabase dashboard (Table Editor, or SQL Editor):
+
+```sql
+select * from alcompass_daily order by day desc, events desc;        -- what people do, per day
+select * from alcompass_recent_errors;                                -- what broke, where, after which steps
+select session, at, kind, name, data from alcompass_events
+  where session = '<id>' order by at;                                 -- one visit, step by step
+```
+
 ## Run it
 
 ```bash
