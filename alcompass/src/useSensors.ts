@@ -1,11 +1,17 @@
+// Native sensors (Android/iOS). The browser version is useSensors.web.ts; both export the same hooks.
 import { useEffect, useRef, useState } from 'react';
 import * as Location from 'expo-location';
 import { HeadingFilter } from './headingFilter';
-import type { LatLng } from './geo';
+import {
+  courseFrom,
+  HEADING_TIMEOUT_MS,
+  type Heading,
+  type PermissionState,
+  type Position,
+  type SensorAccess,
+} from './sensorTypes';
 
-export type PermissionState = 'pending' | 'granted' | 'denied';
-
-export function useLocationPermission(): PermissionState {
+export function useSensorAccess(): SensorAccess {
   const [state, setState] = useState<PermissionState>('pending');
   useEffect(() => {
     let cancelled = false;
@@ -16,16 +22,9 @@ export function useLocationPermission(): PermissionState {
       cancelled = true;
     };
   }, []);
-  return state;
+  // Native asks on launch; nothing for a button to do.
+  return { state, request: () => {} };
 }
-
-export type Position = LatLng & {
-  /** GPS course over ground in degrees, or null when not moving. */
-  course: number | null;
-};
-
-// Below this speed the GPS course is noise.
-const MIN_COURSE_SPEED_MPS = 0.8;
 
 export function usePosition(enabled: boolean): Position | null {
   const [pos, setPos] = useState<Position | null>(null);
@@ -35,14 +34,12 @@ export function usePosition(enabled: boolean): Position | null {
     let cancelled = false;
     Location.watchPositionAsync(
       { accuracy: Location.Accuracy.Balanced, distanceInterval: 5, timeInterval: 2000 },
-      ({ coords }) => {
-        const moving = coords.speed != null && coords.speed >= MIN_COURSE_SPEED_MPS;
+      ({ coords }) =>
         setPos({
           latitude: coords.latitude,
           longitude: coords.longitude,
-          course: moving && coords.heading != null && coords.heading >= 0 ? coords.heading : null,
-        });
-      },
+          course: courseFrom(coords.speed, coords.heading),
+        }),
     ).then((s) => (cancelled ? s.remove() : (sub = s)));
     return () => {
       cancelled = true;
@@ -51,18 +48,6 @@ export function usePosition(enabled: boolean): Position | null {
   }, [enabled]);
   return pos;
 }
-
-export type Heading = {
-  /** Smoothed true heading in degrees, or null before the first reading. */
-  degrees: number | null;
-  /** True when the platform reports accuracy below 2 (Android) and the needle should not be trusted. */
-  calibrating: boolean;
-  /** True when no heading has arrived at all, e.g. no magnetometer. */
-  unavailable: boolean;
-};
-
-// If no heading reading arrives in this window, treat the compass as missing.
-const HEADING_TIMEOUT_MS = 4000;
 
 export function useHeading(enabled: boolean): Heading {
   const filter = useRef(new HeadingFilter(0.2));
@@ -87,6 +72,7 @@ export function useHeading(enabled: boolean): Heading {
       const raw = trueHeading >= 0 ? trueHeading : magHeading;
       setHeading({
         degrees: filter.current.push(raw),
+        // Android reports 0-3; below 2 the needle is not trustworthy.
         calibrating: accuracy < 2,
         unavailable: false,
       });

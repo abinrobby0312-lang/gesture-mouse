@@ -21,7 +21,15 @@
       "package": "app.alcompass"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "Alcompass",
+      "shortName": "Alcompass",
+      "themeColor": "#0d0f13",
+      "backgroundColor": "#0d0f13",
+      "display": "standalone",
+      "orientation": "portrait"
     },
     "backgroundColor": "#0d0f13",
     "plugins": [

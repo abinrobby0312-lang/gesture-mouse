@@ -40,23 +40,5 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      # android/ is generated, never committed.
-      - name: Prebuild
-        run: npx expo prebuild --platform android --no-install
-
-      # Release variant so the JS is bundled in; the Expo template signs it
-      # with the debug key, so it installs for testing but is not a store build.
-      - name: Assemble APK
-        working-directory: alcompass/android
-        run: ./gradlew --no-daemon assembleRelease
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Alcompass-apk
-          path: alcompass/android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
+      - name: Build web app
+        run: npx expo export --platform web

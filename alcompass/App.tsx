@@ -1,13 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { bearingDeg, compassPoint, distanceM, formatDistance, needleAngleDeg } from './src/geo';
 import { Needle } from './src/Needle';
 import { DEV_SHOP } from './src/target';
-import { useHeading, useLocationPermission, usePosition } from './src/useSensors';
+import { useHeading, usePosition, useSensorAccess } from './src/useSensors';
 
 export default function App() {
   const { width } = useWindowDimensions();
-  const permission = useLocationPermission();
+  const access = useSensorAccess();
+  const permission = access.state;
   const granted = permission === 'granted';
   const position = usePosition(granted);
   const heading = useHeading(granted);
@@ -15,13 +16,25 @@ export default function App() {
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
+      {permission === 'idle' && (
+        <>
+          <Text style={styles.name}>Alcompass</Text>
+          <Text style={styles.note}>
+            Points at the nearest retail liquor outlet. Needs your location and compass.
+          </Text>
+          <Pressable style={styles.button} onPress={access.request} accessibilityRole="button">
+            <Text style={styles.buttonText}>Start</Text>
+          </Pressable>
+        </>
+      )}
       {permission === 'pending' && <Text style={styles.note}>Asking for location access…</Text>}
       {permission === 'denied' && (
         <Text style={styles.note}>
-          Alcompass needs location access to point at shops. Turn it on in Settings.
+          Alcompass needs location access to point at shops. Turn it on in your settings, then
+          reload.
         </Text>
       )}
-      {granted && <Compass size={width * 0.6} position={position} heading={heading} />}
+      {granted && <Compass size={Math.min(width * 0.6, 360)} position={position} heading={heading} />}
     </View>
   );
 }
@@ -44,6 +57,7 @@ function Compass({ size, position, heading }: CompassProps) {
   let status: string | null = null;
   if (heading.unavailable && !usingCourse) status = 'No compass on this phone. Start walking to orient the arrow.';
   else if (usingCourse) status = 'No compass. Arrow follows your walking direction.';
+  else if (facing == null) status = 'Waiting for compass…';
   else if (heading.calibrating) status = 'Calibrating. Move the phone in a figure 8.';
 
   return (
@@ -58,7 +72,7 @@ function Compass({ size, position, heading }: CompassProps) {
         // No way to orient a needle: give plain direction text instead.
         <View style={[styles.textOnly, { height: size }]}>
           <Text style={styles.big}>
-            {distance != null ? `${compassPoint(bearing)}` : '…'}
+            {heading.unavailable && distance != null ? compassPoint(bearing) : '…'}
           </Text>
         </View>
       )}
@@ -92,5 +106,13 @@ const styles = StyleSheet.create({
   distance: { color: '#9aa1ad', fontSize: 16, marginTop: 6 },
   note: { color: '#9aa1ad', fontSize: 14, textAlign: 'center', marginTop: 20 },
   textOnly: { justifyContent: 'center' },
+  button: {
+    marginTop: 28,
+    backgroundColor: '#f2b134',
+    borderRadius: 24,
+    paddingHorizontal: 40,
+    paddingVertical: 12,
+  },
+  buttonText: { color: '#0d0f13', fontSize: 17, fontWeight: '700' },
   big: { color: '#f2b134', fontSize: 64, fontWeight: '700' },
 });
